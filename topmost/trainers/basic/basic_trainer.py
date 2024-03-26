@@ -18,7 +18,7 @@ class BasicTrainer:
         self.lr_scheduler = lr_scheduler
         self.lr_step_size = lr_step_size
         self.log_interval = log_interval
-        
+
         self.logger = logging.getLogger('main')
 
     def make_optimizer(self,):
@@ -32,7 +32,8 @@ class BasicTrainer:
 
     def make_lr_scheduler(self, optimizer):
         if self.lr_scheduler == "StepLR":
-            lr_scheduler = StepLR(optimizer, step_size=self.lr_step_size, gamma=0.5, verbose=False)
+            lr_scheduler = StepLR(
+                optimizer, step_size=self.lr_step_size, gamma=0.5, verbose=False)
         else:
             raise NotImplementedError(self.lr_scheduler)
         return lr_scheduler
@@ -49,6 +50,7 @@ class BasicTrainer:
 
         if self.lr_scheduler:
             print("===>using lr_scheduler")
+            self.logger.info("===>using lr_scheduler")
             lr_scheduler = self.make_lr_scheduler(optimizer)
 
         data_size = len(dataset_handler.train_dataloader.dataset)
@@ -71,7 +73,7 @@ class BasicTrainer:
 
             for key in loss_rst_dict:
                 wandb.log({key: loss_rst_dict[key] / data_size})
-                
+
             if self.lr_scheduler:
                 lr_scheduler.step()
 
@@ -81,6 +83,7 @@ class BasicTrainer:
                     output_log += f' {key}: {loss_rst_dict[key] / data_size :.3f}'
 
                 print(output_log)
+                self.logger.info(output_log)
 
     def test(self, input_data):
         data_size = input_data.shape[0]
@@ -110,7 +113,7 @@ class BasicTrainer:
         train_theta = self.test(dataset_handler.train_data)
         test_theta = self.test(dataset_handler.test_data)
         return train_theta, test_theta
-    
+
     def save_beta(self, dir_path):
         beta = self.export_beta()
         np.save(os.path.join(dir_path, 'beta.npy'), beta)
@@ -128,3 +131,15 @@ class BasicTrainer:
         np.save(os.path.join(dir_path, 'train_theta.npy'), train_theta)
         np.save(os.path.join(dir_path, 'test_theta.npy'), test_theta)
         return train_theta, test_theta
+
+    def save_embeddings(self, dir_path):
+        if hasattr(self.model, 'word_embeddings'):
+            word_embeddings = self.model.word_embeddings.detach().cpu().numpy()
+            np.save(os.path.join(dir_path, 'word_embeddings.npy'), word_embeddings)
+            self.logger.info(f'word_embeddings size: {word_embeddings.shape}')
+        if hasattr(self.model, 'topic_embeddings'):
+            topic_embeddings = self.model.topic_embeddings.detach().cpu().numpy()
+            np.save(os.path.join(dir_path, 'topic_embeddings.npy'),
+                    topic_embeddings)
+            self.logger.info(f'topic_embeddings size: {topic_embeddings.shape}')
+        return word_embeddings, topic_embeddings

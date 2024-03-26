@@ -57,23 +57,23 @@ if __name__ == "__main__":
     train_theta, test_theta = trainer.save_theta(dataset, current_run_dir)
     top_words = trainer.save_top_words(
         dataset.vocab, args.num_top_word, current_run_dir)
+    
+    # save word embeddings and topic embeddings
+    if args.model in ['ETM', 'ECRTM']:
+        trainer.save_embeddings(current_run_dir)
+        miscellaneous.tsne_viz(model.word_embeddings.detach().cpu().numpy(),
+                               model.topic_embeddings.detach().cpu().numpy(),
+                               os.path.join(current_run_dir, 'tsne.png'))
 
     # model evaluation
-    # TC
-    TC = topmost.evaluations.compute_topic_coherence(
-        dataset.train_texts, dataset.vocab, top_words, cv_type='c_npmi')
-    print(f"TC: {TC:.5f}")
-    wandb.log({"TC": TC})
-    logger.info(f"TC: {TC:.5f}")
-
     # TD
     TD = topmost.evaluations.compute_topic_diversity(top_words, _type="TD")
     print(f"TD: {TD:.5f}")
     wandb.log({"TD": TD})
     logger.info(f"TD: {TD:.5f}")
 
+    # evaluating clustering
     if read_labels:
-        # evaluating clustering
         clustering_results = topmost.evaluations.evaluate_clustering(
             test_theta, dataset.test_labels)
         print(f"NMI: ", clustering_results['NMI'])
@@ -82,5 +82,12 @@ if __name__ == "__main__":
         wandb.log({"Purity": clustering_results['Purity']})
         logger.info(f"NMI: {clustering_results['NMI']}")
         logger.info(f"Purity: {clustering_results['Purity']}")
+
+    # # TC
+    # TC = topmost.evaluations.compute_topic_coherence(
+    #     dataset.train_texts, dataset.vocab, top_words, cv_type='c_npmi')
+    # print(f"TC: {TC:.5f}")
+    # wandb.log({"TC": TC})
+    # logger.info(f"TC: {TC:.5f}")
 
     wandb.finish()
