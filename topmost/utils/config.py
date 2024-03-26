@@ -2,7 +2,7 @@ import argparse
 
 
 def new_parser(name=None):
-    return argparse.ArgumentParser(name=name)
+    return argparse.ArgumentParser(prog=name)
 
 
 def add_dataset_argument(parser):
@@ -29,7 +29,8 @@ def add_training_argument(parser):
                         help='device to run the model, cuda or cpu')
     parser.add_argument('--seed', type=int, default=0, help='random seed')
     parser.add_argument('--lrscheduler', type=str,
-                        help='learning rate scheduler, currently support: step')
+                        help='learning rate scheduler, dont use if not needed, \
+                            currently support: step')
     parser.add_argument('--lr_step_size', type=int, default=125,
                         help='step size for learning rate scheduler')
 
