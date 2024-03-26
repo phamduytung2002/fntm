@@ -5,6 +5,8 @@ from torch.optim.lr_scheduler import StepLR
 from collections import defaultdict
 from topmost.utils import static_utils
 import wandb
+import logging
+import os
 
 
 class BasicTrainer:
@@ -17,7 +19,7 @@ class BasicTrainer:
         self.lr_step_size = lr_step_size
         self.log_interval = log_interval
         
-        self.wandb_run = wandb.init(project='ntm', config=self.__dict__)
+        self.logger = logging.getLogger('main')
 
     def make_optimizer(self,):
         args_dict = {
@@ -69,7 +71,6 @@ class BasicTrainer:
 
             for key in loss_rst_dict:
                 wandb.log({key: loss_rst_dict[key] / data_size})
-                print(loss_rst_dict[key] / data_size)
                 
             if self.lr_scheduler:
                 lr_scheduler.step()
@@ -108,4 +109,22 @@ class BasicTrainer:
     def export_theta(self, dataset_handler):
         train_theta = self.test(dataset_handler.train_data)
         test_theta = self.test(dataset_handler.test_data)
+        return train_theta, test_theta
+    
+    def save_beta(self, dir_path):
+        beta = self.export_beta()
+        np.save(os.path.join(dir_path, 'beta.npy'), beta)
+        return beta
+
+    def save_top_words(self, vocab, num_top_words, dir_path):
+        top_words = self.export_top_words(vocab, num_top_words)
+        with open(os.path.join(dir_path, 'top_words.txt'), 'w') as f:
+            for i, words in enumerate(top_words):
+                f.write(f'Topic {i}: {words}\n')
+        return top_words
+
+    def save_theta(self, dataset_handler, dir_path):
+        train_theta, test_theta = self.export_theta(dataset_handler)
+        np.save(os.path.join(dir_path, 'train_theta.npy'), train_theta)
+        np.save(os.path.join(dir_path, 'test_theta.npy'), test_theta)
         return train_theta, test_theta

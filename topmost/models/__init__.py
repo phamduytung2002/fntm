@@ -14,3 +14,19 @@ from .dynamic.DETM import DETM
 from .hierarchical.SawETM.SawETM import SawETM
 from .hierarchical.HyperMiner.HyperMiner import HyperMiner
 from .hierarchical.TraCo.TraCo import TraCo
+
+MODEL_DICT = {
+    "ProdLDA": ProdLDA,
+    "CombinedTM": CombinedTM,
+    "DecTM": DecTM,
+    "ETM": ETM,
+    "NSTM": NSTM,
+    "TSCTM": TSCTM,
+    "ECRTM": ECRTM,
+    "NMTM": NMTM,
+    "InfoCTM": InfoCTM,
+    "DETM": DETM,
+    "SawETM": SawETM,
+    "HyperMiner": HyperMiner,
+    "TraCo": TraCo
+}

@@ -1,0 +1,1 @@
+python main.py --dataset 20NG --model ECRTM --num_topics 50 --epochs 10 --device cuda
