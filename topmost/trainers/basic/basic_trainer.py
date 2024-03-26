@@ -4,6 +4,7 @@ import torch
 from torch.optim.lr_scheduler import StepLR
 from collections import defaultdict
 from topmost.utils import static_utils
+import wandb
 
 
 class BasicTrainer:
@@ -15,6 +16,8 @@ class BasicTrainer:
         self.lr_scheduler = lr_scheduler
         self.lr_step_size = lr_step_size
         self.log_interval = log_interval
+        
+        self.wandb_run = wandb.init(project='ntm', config=self.__dict__)
 
     def make_optimizer(self,):
         args_dict = {
@@ -64,6 +67,10 @@ class BasicTrainer:
                 for key in rst_dict:
                     loss_rst_dict[key] += rst_dict[key] * len(batch_data)
 
+            for key in loss_rst_dict:
+                wandb.log({key: loss_rst_dict[key] / data_size})
+                print(loss_rst_dict[key] / data_size)
+                
             if self.lr_scheduler:
                 lr_scheduler.step()
 

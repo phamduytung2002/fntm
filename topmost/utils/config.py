@@ -28,7 +28,7 @@ def add_training_argument(parser):
     parser.add_argument('--device', type=str, default='cuda',
                         help='device to run the model, cuda or cpu')
     parser.add_argument('--seed', type=int, default=0, help='random seed')
-    parser.add_argument('--lrscheduler', type=str,
+    parser.add_argument('--lr_scheduler', type=str,
                         help='learning rate scheduler, dont use if not needed, \
                             currently support: step')
     parser.add_argument('--lr_step_size', type=int, default=125,
