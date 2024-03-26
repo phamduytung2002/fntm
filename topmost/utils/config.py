@@ -39,3 +39,17 @@ def save_config(args, path):
     with open(path, 'w') as f:
         for key, value in vars(args).items():
             f.write(f'{key}: {value}\n')
+
+def load_config(path):
+    args = argparse.Namespace()
+    with open(path, 'r') as f:
+        for line in f:
+            key, value = line.strip().split(': ')
+            if value.isdigit():
+                if value.find('.') != -1:
+                    value = float(value)
+                else:
+                    value = int(value)
+            setattr(args, key, value)
+    print(args)
+    return args
