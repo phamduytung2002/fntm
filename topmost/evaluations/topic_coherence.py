@@ -46,11 +46,15 @@ def C_V_on_wikipedia(top_word_path, cv_type='C_V'):
     """
     Compute the C_V score on the Wikipedia dataset
     """
-    os.system(f"topmost\evaluations\C_V_on_wikipedia.bat {cv_type} {top_word_path} > tmp.txt")
+    jar_dir = ".\\topmost\evaluations"
+    wiki_dir = ".\data"
+    random_number = np.random.randint(100000)
+    os.system(
+        f'java -jar {jar_dir}\pametto.jar {wiki_dir}\wikipedia\wikipedia_bd {cv_type} {top_word_path} > tmp{random_number}.txt')
     cv_score = []
-    with open("tmp.txt", "r") as f:
+    with open(f"tmp{random_number}.txt", "r") as f:
         for line in f.readlines():
             if not line.startswith("202"):
                 cv_score.append(float(line.strip().split()[1]))
-    os.remove("tmp.txt")
+    os.remove(f"tmp{random_number}.txt")
     return cv_score, sum(cv_score) / len(cv_score)

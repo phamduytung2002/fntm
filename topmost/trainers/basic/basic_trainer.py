@@ -58,6 +58,7 @@ class BasicTrainer:
         for epoch in tqdm(range(1, self.epochs + 1)):
             self.model.train()
             loss_rst_dict = defaultdict(float)
+            wandb.log({'epoch': epoch})
 
             for batch_data in dataset_handler.train_dataloader:
 
