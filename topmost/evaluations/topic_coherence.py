@@ -3,6 +3,7 @@ from gensim.models import CoherenceModel
 import numpy as np
 from tqdm import tqdm
 from ..data.file_utils import split_text_word
+import os
 
 
 def compute_topic_coherence(reference_corpus, vocab, top_words, cv_type='c_v'):
@@ -14,7 +15,8 @@ def compute_topic_coherence(reference_corpus, vocab, top_words, cv_type='c_v'):
     split_reference_corpus = split_text_word(reference_corpus)
     dictionary = Dictionary(split_text_word(vocab))
 
-    cm = CoherenceModel(texts=split_reference_corpus, dictionary=dictionary, topics=split_top_words, topn=num_top_words, coherence=cv_type)
+    cm = CoherenceModel(texts=split_reference_corpus, dictionary=dictionary,
+                        topics=split_top_words, topn=num_top_words, coherence=cv_type)
     cv_per_topic = cm.get_coherence_per_topic()
     score = np.mean(cv_per_topic)
 
@@ -31,9 +33,24 @@ def compute_dynamic_TC(train_texts, train_times, vocab, top_words_list, cv_type=
 
         # use the the topics at the time slice
         top_words = top_words_list[time]
-        cv_score = compute_topic_coherence(reference_corpus, vocab, top_words, cv_type)
+        cv_score = compute_topic_coherence(
+            reference_corpus, vocab, top_words, cv_type)
         cv_score_list.append(cv_score)
 
     print("===>CV score list: ", cv_score_list)
 
     return np.mean(cv_score_list)
+
+
+def C_V_on_wikipedia(top_word_path, cv_type='C_V'):
+    """
+    Compute the C_V score on the Wikipedia dataset
+    """
+    os.system(f"topmost\evaluations\C_V_on_wikipedia.bat {cv_type} {top_word_path} > tmp.txt")
+    cv_score = []
+    with open("tmp.txt", "r") as f:
+        for line in f.readlines():
+            if not line.startswith("202"):
+                cv_score.append(float(line.strip().split()[1]))
+    os.remove("tmp.txt")
+    return cv_score, sum(cv_score) / len(cv_score)

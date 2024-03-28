@@ -2,8 +2,11 @@ from topmost.utils import config, log, miscellaneous, seed
 import topmost
 import wandb
 import os
+import numpy as np
+import scipy
 
 RESULT_DIR = 'results'
+DATA_DIR = 'data'
 
 if __name__ == "__main__":
 
@@ -33,13 +36,25 @@ if __name__ == "__main__":
 
     # load a preprocessed dataset
     dataset = topmost.data.BasicDatasetHandler(
-        "./data/" + args.dataset, device=args.device, read_labels=read_labels,
+        os.path.join(DATA_DIR, args.dataset), device=args.device, read_labels=read_labels,
         as_tensor=True)
 
     # create a model
-    model = topmost.models.MODEL_DICT[args.model](vocab_size=dataset.vocab_size,
-                                                  num_topics=args.num_topics,
-                                                  dropout=args.dropout)
+    if args.use_pretrainWE:
+        if args.model in ['ETM', 'ECRTM']:
+            pretrainWE = scipy.sparse.load_npz(os.path.join(
+                DATA_DIR, args.dataset, "word_embeddings.npz")).toarray()
+            model = topmost.models.MODEL_DICT[args.model](vocab_size=dataset.vocab_size,
+                                                          num_topics=args.num_topics,
+                                                          dropout=args.dropout,
+                                                          pretrained_WE=pretrainWE)
+        else:
+            raise ValueError(
+                "Pretrained word embeddings are not supported for this model")
+    else:
+        model = topmost.models.MODEL_DICT[args.model](vocab_size=dataset.vocab_size,
+                                                      num_topics=args.num_topics,
+                                                      dropout=args.dropout)
     model = model.to(args.device)
 
     # create a trainer
@@ -57,7 +72,7 @@ if __name__ == "__main__":
     train_theta, test_theta = trainer.save_theta(dataset, current_run_dir)
     top_words = trainer.save_top_words(
         dataset.vocab, args.num_top_word, current_run_dir)
-    
+
     # save word embeddings and topic embeddings
     if args.model in ['ETM', 'ECRTM']:
         trainer.save_embeddings(current_run_dir)
@@ -83,11 +98,12 @@ if __name__ == "__main__":
         logger.info(f"NMI: {clustering_results['NMI']}")
         logger.info(f"Purity: {clustering_results['Purity']}")
 
-    # # TC
-    # TC = topmost.evaluations.compute_topic_coherence(
-    #     dataset.train_texts, dataset.vocab, top_words, cv_type='c_npmi')
-    # print(f"TC: {TC:.5f}")
-    # wandb.log({"TC": TC})
-    # logger.info(f"TC: {TC:.5f}")
+    # TC
+    TC_list, TC = topmost.evaluations.topic_coherence.C_V_on_wikipedia(
+        os.path.join(current_run_dir, 'top_words.txt'))
+    print(f"TC: {TC:.5f}")
+    wandb.log({"TC": TC})
+    logger.info(f"TC: {TC:.5f}")
+    logger.info(f'TC list: {TC_list}')
 
     wandb.finish()

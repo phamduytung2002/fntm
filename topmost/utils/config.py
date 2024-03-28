@@ -17,6 +17,8 @@ def add_model_argument(parser):
     parser.add_argument('--num_topics', type=int, default=50)
     parser.add_argument('--num_top_word', type=int, default=15)
     parser.add_argument('--dropout', type=float, default=0.4)
+    parser.add_argument('--use_pretrainWE', action='store_true',
+                        default=False, help='Enable use_pretrainWE mode')
 
 
 def add_training_argument(parser):
@@ -35,10 +37,12 @@ def add_training_argument(parser):
     parser.add_argument('--lr_step_size', type=int, default=125,
                         help='step size for learning rate scheduler')
 
+
 def save_config(args, path):
     with open(path, 'w') as f:
         for key, value in vars(args).items():
             f.write(f'{key}: {value}\n')
+
 
 def load_config(path):
     args = argparse.Namespace()

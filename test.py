@@ -3,10 +3,16 @@ from topmost.data import download_dataset
 from topmost.preprocessing import Preprocessing
 import topmost
 from topmost.utils.seed import seedEverything
+import scipy
 
 # download_20ng.download_save(output_dir='./datasets/20NG')
 
 seedEverything(2710)
+
+import numpy as np
+x = scipy.sparse.load_npz('data\\20NG\\word_embeddings.npz')
+print(x)
+exit(0)
 
 device = "cuda"  # or "cpu"
 

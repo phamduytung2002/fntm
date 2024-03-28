@@ -11,7 +11,7 @@ class ECRTM(nn.Module):
 
         Xiaobao Wu, Xinshuai Dong, Thong Thanh Nguyen, Anh Tuan Luu.
     '''
-    def __init__(self, vocab_size, num_topics=50, en_units=200, dropout=0., pretrained_WE=None, embed_size=200, beta_temp=0.2, weight_loss_ECR=100.0, sinkhorn_alpha=20.0, sinkhorn_max_iter=1000):
+    def __init__(self, vocab_size, num_topics=50, en_units=200, dropout=0., pretrained_WE=None, embed_size=200, beta_temp=0.2, weight_loss_ECR=250.0, sinkhorn_alpha=20.0, sinkhorn_max_iter=1000):
         super().__init__()
 
         self.num_topics = num_topics

@@ -123,7 +123,7 @@ class BasicTrainer:
         top_words = self.export_top_words(vocab, num_top_words)
         with open(os.path.join(dir_path, 'top_words.txt'), 'w') as f:
             for i, words in enumerate(top_words):
-                f.write(f'Topic {i}: {words}\n')
+                f.write(words + '\n')
         return top_words
 
     def save_theta(self, dataset_handler, dir_path):
