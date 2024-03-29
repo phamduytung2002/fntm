@@ -5,6 +5,7 @@ from .basic.ETM import ETM
 from .basic.NSTM.NSTM import NSTM
 from .basic.TSCTM.TSCTM import TSCTM
 from .basic.ECRTM.ECRTM import ECRTM
+from .basic.XTM.XTM import XTM
 
 from .crosslingual.NMTM import NMTM
 from .crosslingual.InfoCTM.InfoCTM import InfoCTM
@@ -28,5 +29,6 @@ MODEL_DICT = {
     "DETM": DETM,
     "SawETM": SawETM,
     "HyperMiner": HyperMiner,
-    "TraCo": TraCo
+    "TraCo": TraCo,
+    "XTM": XTM
 }

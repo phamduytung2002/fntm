@@ -41,7 +41,7 @@ if __name__ == "__main__":
 
     # create a model
     if args.use_pretrainWE:
-        if args.model in ['ETM', 'ECRTM']:
+        if args.model in ['ETM', 'ECRTM', 'XTM']:
             pretrainWE = scipy.sparse.load_npz(os.path.join(
                 DATA_DIR, args.dataset, "word_embeddings.npz")).toarray()
             model = topmost.models.MODEL_DICT[args.model](vocab_size=dataset.vocab_size,
