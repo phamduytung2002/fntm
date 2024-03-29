@@ -2,15 +2,15 @@ import numpy as np
 import torch
 from torch import nn
 import torch.nn.functional as F
+from .ECR import ECR
 from .XGR import XGR
 
 
 class XTM(nn.Module):
-    '''
-        XTM
-    '''
-
-    def __init__(self, vocab_size, num_topics=50, num_groups=10, en_units=200, dropout=0., pretrained_WE=None, embed_size=200, beta_temp=0.2, weight_loss_XGR=250.0, sinkhorn_alpha=20.0, sinkhorn_max_iter=1000):
+    def __init__(self, vocab_size, num_topics=50, num_groups=10, en_units=200,
+                 dropout=0., pretrained_WE=None, embed_size=200, beta_temp=0.2,
+                 weight_loss_XGR=250.0, weight_loss_ECR=250.0,
+                 sinkhorn_alpha=20.0, sinkhorn_max_iter=1000):
         super().__init__()
 
         self.num_topics = num_topics
@@ -56,6 +56,7 @@ class XTM(nn.Module):
                 'num_topics should be divisible by num_groups')
         self.num_topics_per_group = num_topics // num_groups
 
+        self.ECR = ECR(weight_loss_ECR, sinkhorn_alpha, sinkhorn_max_iter)
         self.XGR = XGR(weight_loss_XGR, sinkhorn_alpha, sinkhorn_max_iter)
         self.group_connection_regularizer = torch.ones(
             (self.num_topics_per_group, self.num_topics_per_group))
@@ -110,6 +111,12 @@ class XTM(nn.Module):
         KLD = KLD.mean()
         return KLD
 
+    def get_loss_ECR(self):
+        cost = self.pairwise_euclidean_distance(
+            self.topic_embeddings, self.word_embeddings)
+        loss_ECR = self.ECR(cost)
+        return loss_ECR
+
     def get_loss_XGR(self):
         cost = self.pairwise_euclidean_distance(
             self.topic_embeddings, self.topic_embeddings)
@@ -130,12 +137,14 @@ class XTM(nn.Module):
 
         loss_TM = recon_loss + loss_KL
 
+        loss_ECR = self.get_loss_ECR()
         loss_XGR = self.get_loss_XGR()
-        loss = loss_TM + loss_XGR
+        loss = loss_TM + loss_ECR + loss_XGR
 
         rst_dict = {
             'loss': loss,
             'loss_TM': loss_TM,
+            'loss_ECR': loss_ECR,
             'loss_XGR': loss_XGR
         }
 

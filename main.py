@@ -27,6 +27,7 @@ if __name__ == "__main__":
     logger = log.setup_logger(
         'main', os.path.join(current_run_dir, 'main.log'))
     wandb.init(project='ntm', config=args)
+    wandb.log({'time_stamp': current_time})
 
     if args.dataset in ['20NG', 'IMDB', 'Rakuten_Amazon',
                         'NYT', 'ECNews', 'Amazon_Review']:
@@ -40,21 +41,31 @@ if __name__ == "__main__":
         as_tensor=True)
 
     # create a model
-    if args.use_pretrainWE:
-        if args.model in ['ETM', 'ECRTM', 'XTM']:
-            pretrainWE = scipy.sparse.load_npz(os.path.join(
-                DATA_DIR, args.dataset, "word_embeddings.npz")).toarray()
-            model = topmost.models.MODEL_DICT[args.model](vocab_size=dataset.vocab_size,
-                                                          num_topics=args.num_topics,
-                                                          dropout=args.dropout,
-                                                          pretrained_WE=pretrainWE)
-        else:
-            raise ValueError(
-                "Pretrained word embeddings are not supported for this model")
+    pretrainWE = scipy.sparse.load_npz(os.path.join(
+        DATA_DIR, args.dataset, "word_embeddings.npz")).toarray()
+    if args.model == 'XTM':
+        model = topmost.models.MODEL_DICT[args.model](vocab_size=dataset.vocab_size,
+                                                      num_topics=args.num_topics,
+                                                      num_groups=10,
+                                                      dropout=args.dropout,
+                                                      pretrained_WE=pretrainWE if args.use_pretrainWE else None,
+                                                      weight_loss_XGR=args.weight_XGR,
+                                                      weight_loss_ECR=args.weight_ECR)
+    elif args.model == 'ECRTM':
+        model = topmost.models.MODEL_DICT[args.model](vocab_size=dataset.vocab_size,
+                                                      num_topics=args.num_topics,
+                                                      dropout=args.dropout,
+                                                      pretrained_WE=pretrainWE if args.use_pretrainWE else None,
+                                                      weight_loss_ECR=args.weight_ECR)
     else:
         model = topmost.models.MODEL_DICT[args.model](vocab_size=dataset.vocab_size,
                                                       num_topics=args.num_topics,
                                                       dropout=args.dropout)
+    if args.model == 'XTM':
+        model.weight_loss_XGR = args.weight_XGR
+        model.weight_loss_ECR = args.weight_ECR
+    if args.model == 'ECRTM':
+        model.weight_loss_ECR = args.weight_ECR
     model = model.to(args.device)
 
     # create a trainer
@@ -74,7 +85,7 @@ if __name__ == "__main__":
         dataset.vocab, args.num_top_word, current_run_dir)
 
     # save word embeddings and topic embeddings
-    if args.model in ['ETM', 'ECRTM']:
+    if args.model in ['ETM', 'ECRTM', 'XTM']:
         trainer.save_embeddings(current_run_dir)
         miscellaneous.tsne_viz(model.word_embeddings.detach().cpu().numpy(),
                                model.topic_embeddings.detach().cpu().numpy(),

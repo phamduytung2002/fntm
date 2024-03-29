@@ -2,7 +2,7 @@
 SETLOCAL ENABLEDELAYEDEXPANSION
 
 REM Define the arrays
-set "array1=1 10 "
+set "array1=100 250 "
 set "array2=1 10 100 250 "
 
 REM Loop through the first array

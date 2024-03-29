@@ -19,6 +19,8 @@ def add_model_argument(parser):
     parser.add_argument('--dropout', type=float, default=0.4)
     parser.add_argument('--use_pretrainWE', action='store_true',
                         default=False, help='Enable use_pretrainWE mode')
+    parser.add_argument('--weight_ECR', type=float, default=250.)
+    parser.add_argument('--weight_XGR', type=float, default=250.)
 
 
 def add_training_argument(parser):
