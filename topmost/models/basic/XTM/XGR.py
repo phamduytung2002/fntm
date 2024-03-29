@@ -3,6 +3,11 @@ from torch import nn
 
 
 class XGR(nn.Module):
+    '''
+        Effective Neural Topic Modeling with Embedding Clustering Regularization. ICML 2023
+
+        Xiaobao Wu, Xinshuai Dong, Thong Thanh Nguyen, Anh Tuan Luu.
+    '''
     def __init__(self, weight_loss_XGR, sinkhorn_alpha, OT_max_iter=5000, stopThr=.5e-2):
         super().__init__()
 
@@ -12,39 +17,35 @@ class XGR(nn.Module):
         self.stopThr = stopThr
         self.epsilon = 1e-16
 
-    def forward(self, M, group):
+    def sinkhorn_iteration(self, M):
         # M: KxV
         # a: Kx1
         # b: Vx1
         device = M.device
-        group = group.to(device)
 
         # Sinkhorn's algorithm
         a = (torch.ones(M.shape[0]) / M.shape[0]).unsqueeze(1).to(device)
         b = (torch.ones(M.shape[1]) / M.shape[1]).unsqueeze(1).to(device)
 
-        u = (torch.ones_like(a) / a.size()[0]).to(device)  # Kx1
+        u = (torch.ones_like(a) / a.size()[0]).to(device) # Kx1
 
         K = torch.exp(-M * self.sinkhorn_alpha)
         err = 1
         cpt = 0
         while err > self.stopThr and cpt < self.OT_max_iter:
-            K = torch.exp(-M * self.sinkhorn_alpha)
             v = torch.div(b, torch.matmul(K.t(), u) + self.epsilon)
             u = torch.div(a, torch.matmul(K, v) + self.epsilon)
-            K = -torch.log(- torch.div(group, u @ v.T) * self.sinkhorn_alpha + self.epsilon)
-            M = ((K + K.T)/2).fill_diagonal_(0)
-            print(M.max(), M.min())
-
             cpt += 1
             if cpt % 50 == 1:
                 bb = torch.mul(v, torch.matmul(K.t(), u))
-                err = torch.norm(
-                    torch.sum(torch.abs(bb - b), dim=0), p=float('inf'))
+                err = torch.norm(torch.sum(torch.abs(bb - b), dim=0), p=float('inf'))
 
         transp = u * (K * v.T)
 
-        loss_XGR = torch.sum(transp * M)
-        loss_XGR *= self.weight_loss_XGR
+        return transp
 
+    def forward(self, M, group):
+        transp = self.sinkhorn_iteration(M)
+        group = group.to(M.device)
+        loss_XGR = (torch.exp(group) * (group - transp - 1) + torch.exp(transp)).sum()
         return loss_XGR
