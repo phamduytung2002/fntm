@@ -21,6 +21,8 @@ def add_model_argument(parser):
                         default=False, help='Enable use_pretrainWE mode')
     parser.add_argument('--weight_ECR', type=float, default=250.)
     parser.add_argument('--weight_XGR', type=float, default=250.)
+    parser.add_argument('--alpha_ECR', type=float, default=20.)
+    parser.add_argument('--alpha_XGR', type=float, default=5.)
 
 
 def add_training_argument(parser):

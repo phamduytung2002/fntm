@@ -10,7 +10,7 @@ class XTM(nn.Module):
     def __init__(self, vocab_size, num_topics=50, num_groups=10, en_units=200,
                  dropout=0., pretrained_WE=None, embed_size=200, beta_temp=0.2,
                  weight_loss_XGR=250.0, weight_loss_ECR=250.0,
-                 sinkhorn_alpha=20.0, sinkhorn_max_iter=1000):
+                 alpha_ECR=20.0, alpha_XGR=4.0, sinkhorn_max_iter=1000):
         super().__init__()
 
         self.num_topics = num_topics
@@ -56,8 +56,8 @@ class XTM(nn.Module):
                 'num_topics should be divisible by num_groups')
         self.num_topics_per_group = num_topics // num_groups
 
-        self.ECR = ECR(weight_loss_ECR, sinkhorn_alpha, sinkhorn_max_iter)
-        self.XGR = XGR(weight_loss_XGR, sinkhorn_alpha, sinkhorn_max_iter)
+        self.ECR = ECR(weight_loss_ECR, alpha_ECR, sinkhorn_max_iter)
+        self.XGR = XGR(weight_loss_XGR, alpha_XGR, sinkhorn_max_iter)
         self.group_connection_regularizer = torch.ones(
             (self.num_topics_per_group, self.num_topics_per_group))
         for _ in range(num_groups-1):
