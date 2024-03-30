@@ -43,7 +43,18 @@ if __name__ == "__main__":
     # create a model
     pretrainWE = scipy.sparse.load_npz(os.path.join(
         DATA_DIR, args.dataset, "word_embeddings.npz")).toarray()
-    if args.model == 'XTM':
+    
+    if args.model == 'XTMv2':
+        model = topmost.models.MODEL_DICT[args.model](vocab_size=dataset.vocab_size,
+                                                      num_topics=args.num_topics,
+                                                      num_groups=10,
+                                                      dropout=args.dropout,
+                                                      pretrained_WE=pretrainWE if args.use_pretrainWE else None,
+                                                      weight_loss_XGR=args.weight_XGR,
+                                                      weight_loss_ECR=args.weight_ECR,
+                                                      alpha_ECR=args.alpha_ECR,
+                                                      alpha_XGR=args.alpha_XGR)
+    elif args.model == 'XTM':
         model = topmost.models.MODEL_DICT[args.model](vocab_size=dataset.vocab_size,
                                                       num_topics=args.num_topics,
                                                       num_groups=10,
@@ -64,6 +75,9 @@ if __name__ == "__main__":
         model = topmost.models.MODEL_DICT[args.model](vocab_size=dataset.vocab_size,
                                                       num_topics=args.num_topics,
                                                       dropout=args.dropout)
+    if args.model == 'XTMv2':
+        model.weight_loss_XGR = args.weight_XGR
+        model.weight_loss_ECR = args.weight_ECR
     if args.model == 'XTM':
         model.weight_loss_XGR = args.weight_XGR
         model.weight_loss_ECR = args.weight_ECR
@@ -88,7 +102,7 @@ if __name__ == "__main__":
         dataset.vocab, args.num_top_word, current_run_dir)
 
     # save word embeddings and topic embeddings
-    if args.model in ['ETM', 'ECRTM', 'XTM']:
+    if args.model in ['ETM', 'ECRTM', 'XTM', 'XTMv2']:
         trainer.save_embeddings(current_run_dir)
         miscellaneous.tsne_viz(model.word_embeddings.detach().cpu().numpy(),
                                model.topic_embeddings.detach().cpu().numpy(),
