@@ -83,7 +83,7 @@ class XTMv2(nn.Module):
         else:
             return mu
 
-    def encode(self, input):
+    def encode(self, input, eps=1e-8):
         e1 = F.softplus(self.fc11(input))
         e1 = F.softplus(self.fc12(e1))
         e1 = self.fc1_dropout(e1)
@@ -92,24 +92,18 @@ class XTMv2(nn.Module):
         z = self.reparameterize(mu, logvar)
 
         p = self.gating_alpha(input)
-        # print(p.shape)
-        # print(p)
+        p = p.clamp(eps, 1-eps)
         alpha = F.gumbel_softmax(torch.log(p), tau=1e-2)
-        # print(alpha.shape)
-        # print(alpha)
         alpha_all_topics = alpha.unsqueeze(dim=-1) \
                                 .repeat(*[[1]*alpha.ndim + [self.num_topics_per_group]]) \
                                 .flatten(start_dim=-2)
-                                
-        # print(alpha_all_topics.shape)
-        # print(alpha_all_topics)
 
         theta = F.softmax(alpha_all_topics * z, dim=1)
 
         loss_KL_gauss = self.compute_loss_KL_gauss(
             mu, logvar)
         loss_KL_ber = self.compute_loss_KL_ber(p)
-        
+
         # exit(0)
 
         return theta, loss_KL_gauss, loss_KL_ber
@@ -133,11 +127,13 @@ class XTMv2(nn.Module):
         KLD = KLD.mean()
         return KLD
 
-    def compute_loss_KL_ber(self, p):
+    def compute_loss_KL_ber(self, p, eps=1e-4):
         q = (torch.ones_like(p) / p.shape[-1]).to(p.device)
-        KLD = p * (p.log() - q.log()) + (1 - p) * (1 - p.log() - (1 - q).log())
+        p1 = p.clamp(eps, 1.0 - eps)
+        KLD = p * (p1.log() - q.log()) + (1 - p) * \
+            ((1 - p1).log() - (1 - q).log())
         KLD = KLD.mean()
-        return KLD
+        return KLD * 10.
 
     def get_loss_ECR(self):
         cost = self.pairwise_euclidean_distance(
