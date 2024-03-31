@@ -23,3 +23,13 @@ Every basic model contains:
     return dict: {'loss': xyz}
 - loss_function
 - (decode)
+
+Dataset download link:
+- NYT: https://www.kaggle.com/datasets/nzalake52/new-york-times-articles
+- wikitext103: https://www.kaggle.com/datasets/dekomposition/wikitext103
+- 20NG: https://www.kaggle.com/datasets/crawford/20-newsgroups, or maybe use sklearn
+- IMDB: http://ai.stanford.edu/~amaas/data/sentiment/aclImdb_v1.tar.gz
+- Yahoo answers: https://www.kaggle.com/datasets/soumikrakshit/yahoo-answers-dataset
+- Neurips: https://www.kaggle.com/datasets/benhamner/nips-papers
+- AGNews: https://www.kaggle.com/datasets/amananandrai/ag-news-classification-dataset
+- ACL: https://www.kaggle.com/datasets/ch4itanyap4ndey/acl-dataset
