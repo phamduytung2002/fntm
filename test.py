@@ -9,6 +9,17 @@ import scipy
 
 seedEverything(2710)
 
+dataset = topmost.data.BasicDatasetHandler(
+    "./data/IMDB", device='cuda', read_labels=True,
+    as_tensor=True)
+
+print(dataset.train_bow[0])
+
+x = scipy.sparse.load_npz('data\\IMDB\\train_bow.npz')
+print(x[0])
+
+exit()
+
 import numpy as np
 x = scipy.sparse.load_npz('data\\20NG\\word_embeddings.npz')
 print(x)

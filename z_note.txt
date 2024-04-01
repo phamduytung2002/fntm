@@ -20,7 +20,7 @@ Every basic model contains:
 - get_theta
 - get_beta
 - forward
-    return dict: {'loss': xyz}
+    return dict: {loss: xyz}
 - loss_function
 - (decode)
 
@@ -29,7 +29,11 @@ Dataset download link:
 - wikitext103: https://www.kaggle.com/datasets/dekomposition/wikitext103
 - 20NG: https://www.kaggle.com/datasets/crawford/20-newsgroups, or maybe use sklearn
 - IMDB: http://ai.stanford.edu/~amaas/data/sentiment/aclImdb_v1.tar.gz
-- Yahoo answers: https://www.kaggle.com/datasets/soumikrakshit/yahoo-answers-dataset
+- Yahoo_answers: https://www.kaggle.com/datasets/soumikrakshit/yahoo-answers-dataset
 - Neurips: https://www.kaggle.com/datasets/benhamner/nips-papers
 - AGNews: https://www.kaggle.com/datasets/amananandrai/ag-news-classification-dataset
 - ACL: https://www.kaggle.com/datasets/ch4itanyap4ndey/acl-dataset
+
+preprocess code from scholar:
+python preprocess.py datasets\20NG\train.jsonlist datasets\20ng\processed\ --vocab-size 5000 --label group --test datasets\20ng\test.jsonlist --stopword snowball
+python preprocess.py datasets\Yahoo_Answers\train.jsonlist datasets\Yahoo_Answers\processed\ --vocab-size 5000 --label label --test datasets\Yahoo_Answers\test.jsonlist --stopword snowball
