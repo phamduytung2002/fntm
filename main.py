@@ -57,7 +57,7 @@ if __name__ == "__main__":
                                                       pretrained_WE=pretrainWE if args.use_pretrainWE else None,
                                                       weight_loss_ECR=args.weight_ECR,
                                                       alpha_ECR=args.alpha_ECR,
-                                                      weight_MMI=args.weight_MMI)
+                                                      weight_loss_MMI=args.weight_MMI)
     elif args.model == 'XTMv2':
         model = topmost.models.MODEL_DICT[args.model](vocab_size=dataset.vocab_size,
                                                       num_topics=args.num_topics,

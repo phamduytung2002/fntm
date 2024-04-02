@@ -61,7 +61,7 @@ class YTM(nn.Module):
         self.ECR = ECR(weight_loss_ECR, alpha_ECR, sinkhorn_max_iter)
 
         # for MMI
-        self.prj_bow = nn.Linear(vocab_size, en_units)
+        self.prj_rep = nn.Linear(en_units, en_units)
         self.prj_bert = nn.Linear(768, en_units)
         self.weight_loss_MMI = weight_loss_MMI
 
@@ -112,21 +112,22 @@ class YTM(nn.Module):
         else:
             return theta
 
-    def sim(self, bow, bert):
-        pbow = self.prj_bow(bow)
+    def sim(self, rep, bert):
+        prep = self.prj_rep(rep)
         pbert = self.prj_bert(bert)
-        return torch.exp(F.cosine_similarity(pbow, pbert))
+        return torch.exp(F.cosine_similarity(prep, pbert))
 
     def csim(self, bow, bert):
-        pbow = self.prj_bow(bow)
+        pbow = self.prj_rep(bow)
         pbert = self.prj_bert(bert)
         csim_matrix = (pbow@pbert.T) / (pbow.norm(keepdim=True,
                                                   dim=-1)@pbert.norm(keepdim=True, dim=-1).T)
-        csim_matrix = csim_matrix.normalize(dim=1)
-        return csim_matrix.log()
+        csim_matrix = torch.exp(csim_matrix)
+        csim_matrix = csim_matrix / csim_matrix.sum(dim=1, keepdim=True)
+        return -csim_matrix.log()
 
-    def compute_loss_MMI(self, input, input_bert):
-        sim_matrix = self.sim(input, input_bert)
+    def compute_loss_MMI(self, rep, contextual_emb):
+        sim_matrix = self.csim(rep, contextual_emb)
         return sim_matrix.diag().mean() * self.weight_loss_MMI
 
     def compute_loss_KL(self, mu, logvar):
@@ -155,7 +156,10 @@ class YTM(nn.Module):
     def forward(self, input):
         bow = input["data"]
         contextual_emb = input["contextual_embed"]
-        theta, loss_KL = self.encode(bow)
+
+        rep = self.get_representation(bow)
+        theta, loss_KL = self.get_theta_from_representation(rep)
+
         beta = self.get_beta()
 
         recon = F.softmax(self.decoder_bn(torch.matmul(theta, beta)), dim=-1)
@@ -165,7 +169,7 @@ class YTM(nn.Module):
 
         loss_ECR = self.get_loss_ECR()
 
-        loss_MMI = self.compute_loss_MMI(bow, contextual_emb)
+        loss_MMI = self.compute_loss_MMI(rep, contextual_emb)
 
         loss = loss_TM + loss_ECR + loss_MMI
 
