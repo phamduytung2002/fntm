@@ -24,7 +24,7 @@ def read_json(input_filename):
 
 def read_jsonlist(input_filename):
     data = []
-    with codecs.open(input_filename, 'r', encoding='utf-8') as input_file:
+    with codecs.open(input_filename, 'r') as input_file:
         for line in input_file:
             data.append(json.loads(line))
     return data

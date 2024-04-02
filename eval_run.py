@@ -1,7 +1,7 @@
 import numpy as np
 import argparse
 import topmost
-from topmost.utils import log, config, static_utils
+from topmost.utils import log, config, static_utils, miscellaneous
 import os
 
 if __name__ == "__main__":
@@ -26,11 +26,18 @@ if __name__ == "__main__":
         "./data/" + config_args.dataset, device=config_args.device, read_labels=read_labels,
         as_tensor=True)
 
-    beta = np.load(os.path.join(dir, 'beta.npy')).reshape(config_args.num_topics, -1)
-    train_theta = np.load(os.path.join(dir, 'train_theta.npy')).reshape(-1, config_args.num_topics)
-    test_theta = np.load(os.path.join(dir, 'test_theta.npy')).reshape(-1, config_args.num_topics)
-    
-    print('beta shape: ', beta.size)
+    beta = np.load(os.path.join(dir, 'beta.npy')).reshape(
+        config_args.num_topics, -1)
+    train_theta = np.load(os.path.join(dir, 'train_theta.npy')
+                          ).reshape(-1, config_args.num_topics)
+    test_theta = np.load(os.path.join(dir, 'test_theta.npy')
+                         ).reshape(-1, config_args.num_topics)
+    word_embeddings = np.load(os.path.join(dir, 'word_embeddings.npy'))
+    topic_embeddings = np.load(os.path.join(dir, 'topic_embeddings.npy'))
+
+    # tsne visualization
+    miscellaneous.tsne_viz(word_embeddings, topic_embeddings,
+                           os.path.join(dir, 'tsne.png'))
 
     top_words = static_utils.print_topic_words(
         beta, dataset.vocab, config_args.num_top_word)

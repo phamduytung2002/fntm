@@ -13,6 +13,7 @@ from tqdm import tqdm
 from sklearn.feature_extraction.text import CountVectorizer
 
 from topmost.data import file_utils
+import sentence_transformers
 
 
 # compile some regexes
@@ -233,6 +234,7 @@ class Preprocessing:
 
     def preprocess(self, raw_train_texts, train_labels=None, raw_test_texts=None, test_labels=None):
         np.random.seed(self.seed)
+        bert_model = sentence_transformers.SentenceTransformer('all-mpnet-base-v2')
 
         train_texts = list()
         test_texts = list()
@@ -247,6 +249,8 @@ class Preprocessing:
             doc_counts_counter.update(set(tokens))
             parsed_text = ' '.join(tokens)
             train_texts.append(parsed_text)
+        
+        train_bert_emb = bert_model.encode(train_texts, batch_size=256, show_progress_bar=True)
 
         if raw_test_texts:
             for text in tqdm(raw_test_texts, desc="===>parse test texts"):
@@ -255,6 +259,8 @@ class Preprocessing:
                 doc_counts_counter.update(set(tokens))
                 parsed_text = ' '.join(tokens)
                 test_texts.append(parsed_text)
+        
+            test_bert_emb = bert_model.encode(train_texts, batch_size=256, show_progress_bar=True)
 
         words, doc_counts = zip(*doc_counts_counter.most_common())
         doc_freqs = np.array(doc_counts) / float(len(train_texts) + len(test_texts))
@@ -284,6 +290,8 @@ class Preprocessing:
                 test_sample_size = int((train_num / (1 - self.test_p)) * self.test_p)
                 train_sample_size = train_num
 
+            train_idx = np.array(train_idx)
+            test_idx = np.array(test_idx)
             train_idx = train_idx[np.sort(np.random.choice(train_num, train_sample_size, replace=False))]
             test_idx = test_idx[np.sort(np.random.choice(test_num, test_sample_size, replace=False))]
 
@@ -296,7 +304,8 @@ class Preprocessing:
             'vocab': vocab,
             'train_bow': train_bow,
             'train_texts': train_texts,
-            'word_embeddings': make_word_embeddings(vocab)
+            'word_embeddings': make_word_embeddings(vocab),
+            'train_bert': train_bert_emb
         }
 
         if train_labels is not None:
@@ -307,6 +316,7 @@ class Preprocessing:
 
         if raw_test_texts is not None:
             rst['test_texts'], rst['test_bow'] = self.parse(np.asarray(test_texts)[test_idx].tolist(), vocab)
+            rst['test_bert'] = test_bert_emb
 
             if test_labels is not None:
                 rst['test_labels'] = np.asarray(test_labels)[test_idx]
@@ -315,13 +325,14 @@ class Preprocessing:
 
         return rst
 
-    def save(self, output_dir, vocab, train_texts, train_bow, word_embeddings, train_labels=None, test_texts=None, test_bow=None, test_labels=None):
+    def save(self, output_dir, vocab, train_texts, train_bow, word_embeddings, train_bert, test_bert, train_labels=None, test_texts=None, test_bow=None, test_labels=None):
         file_utils.make_dir(output_dir)
 
         file_utils.save_text(vocab, f"{output_dir}/vocab.txt")
         file_utils.save_text(train_texts, f"{output_dir}/train_texts.txt")
         scipy.sparse.save_npz(f"{output_dir}/train_bow.npz", scipy.sparse.csr_matrix(train_bow))
         scipy.sparse.save_npz(f"{output_dir}/word_embeddings.npz", word_embeddings)
+        np.savez(f"{output_dir}/train_bert.npz", train_bert)
 
         if train_labels is not None:
             np.savetxt(f"{output_dir}/train_labels.txt", train_labels, fmt='%i')
@@ -331,6 +342,8 @@ class Preprocessing:
 
         if test_texts is not None:
             file_utils.save_text(test_texts, f"{output_dir}/test_texts.txt")
+            np.savez(f"{output_dir}/test_bert.npz", test_bert)
+
 
             if test_labels is not None:
                 np.savetxt(f"{output_dir}/test_labels.txt", test_labels, fmt='%i')

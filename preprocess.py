@@ -12,6 +12,7 @@ from scipy.io import savemat
 
 import topmost.utils.file_handling as fh
 import sentence_transformers
+from tqdm import tqdm
 
 """
 Convert a dataset into the required format (as well as formats required by other tools).
@@ -160,12 +161,20 @@ def preprocess_data(train_infile, test_infile, output_dir, train_prefix, test_pr
     count = 0
 
     vocab = None
-    for i, item in enumerate(all_items):
-        if i % 1000 == 0 and count > 0:
+    batch_text = []
+    bert_embeddings = []
+    model = sentence_transformers.SentenceTransformer('all-mpnet-base-v2')
+    for i, item in tqdm(enumerate(all_items)):
+        if i % 256 == 0 and count > 0:
+            bert_embedding = model.encode(batch_text)
+            bert_embeddings.append(bert_embedding)
             print(i)
+        
+            print(bert_embeddings)
+            exit(0)
 
         text = item['text']
-        bert_embedding, tokens, _ = tokenize(text, strip_html=strip_html, lower=lower, keep_numbers=keep_num, keep_alphanum=keep_alphanum, min_length=min_length, stopwords=stopword_set, vocab=vocab)
+        tokens, _ = tokenize(text, strip_html=strip_html, lower=lower, keep_numbers=keep_num, keep_alphanum=keep_alphanum, min_length=min_length, stopwords=stopword_set, vocab=vocab)
 
         # store the parsed documents
         if i < n_train:
@@ -176,9 +185,8 @@ def preprocess_data(train_infile, test_infile, output_dir, train_prefix, test_pr
         # keep track fo the number of documents with each word
         word_counts.update(tokens)
         doc_counts.update(set(tokens))
-        bert_embeddings.append(bert_embedding)
     bert_embeddings = np.array(bert_embeddings)
-    np.save('sentence_embeddings.npy', bert_embeddings)
+    np.save(os.join(output_dir, 'sentence_embeddings.npy'), bert_embeddings)
 
     print("Size of full vocabulary=%d" % len(word_counts))
 
@@ -330,9 +338,6 @@ def process_subset(items, parsed, label_fields, label_lists, vocab, output_dir, 
 
 
 def tokenize(text, strip_html=False, lower=True, keep_emails=False, keep_at_mentions=False, keep_numbers=False, keep_alphanum=False, min_length=3, stopwords=None, vocab=None):
-    model = sentence_transformers.SentenceTransformer('all-mpnet-base-v2')
-    bert_embeddings = model.encode(text)
-
     text = clean_text(text, strip_html, lower, keep_emails, keep_at_mentions)
     tokens = text.split()
 
@@ -361,7 +366,7 @@ def tokenize(text, strip_html=False, lower=True, keep_emails=False, keep_at_ment
     else:
         tokens = unigrams
 
-    return bert_embeddings, tokens, counts
+    return tokens, counts
 
 
 def clean_text(text, strip_html=False, lower=True, keep_emails=False, keep_at_mentions=False):
