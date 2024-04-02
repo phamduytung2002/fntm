@@ -5,6 +5,7 @@ import scipy.sparse
 import scipy.io
 from sentence_transformers import SentenceTransformer
 from . import file_utils
+import os
 
 
 def load_contextual_embed(texts, device, model_name="all-mpnet-base-v2", show_progress_bar=True):
@@ -51,17 +52,27 @@ class BasicDatasetHandler:
         print("===>average length: {:.3f}".format(self.train_bow.sum(1).sum() / self.train_bow.shape[0]))
 
         if contextual_embed:
-            self.train_contextual_embed = load_contextual_embed(self.train_texts, device)
-            self.test_contextual_embed = load_contextual_embed(self.test_texts, device)
+            if os.path.isfile(os.path.join(dataset_dir, 'with_bert', 'train_bert.npz')):
+                self.train_contextual_embed = np.load(os.path.join(dataset_dir, 'with_bert', 'train_bert.npz'))['arr_0']
+            else:
+                self.train_contextual_embed = load_contextual_embed(self.train_texts, device)
+            
+            if os.path.isfile(os.path.join(dataset_dir, 'with_bert', 'test_bert.npz')):
+                self.test_contextual_embed = np.load(os.path.join(dataset_dir, 'with_bert', 'test_bert.npz'))['arr_0']
+            else:
+                self.test_contextual_embed = load_contextual_embed(self.test_texts, device)
+            
             self.contextual_embed_size = self.train_contextual_embed.shape[1]
 
         if as_tensor:
-            if not contextual_embed:
-                self.train_data = self.train_bow
-                self.test_data = self.test_bow
-            else:
-                self.train_data = np.concatenate((self.train_bow, self.train_contextual_embed), axis=1)
-                self.test_data = np.concatenate((self.test_bow, self.test_contextual_embed), axis=1)
+            # if not contextual_embed:  # to be fixed with an additional argument
+            #     self.train_data = self.train_bow
+            #     self.test_data = self.test_bow
+            # else:
+            #     self.train_data = np.concatenate((self.train_bow, self.train_contextual_embed), axis=1)
+            #     self.test_data = np.concatenate((self.test_bow, self.test_contextual_embed), axis=1)
+            self.train_data = self.train_bow
+            self.test_data = self.test_bow
 
             self.train_data = torch.from_numpy(self.train_data).to(device)
             self.test_data = torch.from_numpy(self.test_data).to(device)

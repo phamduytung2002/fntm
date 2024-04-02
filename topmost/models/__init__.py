@@ -7,6 +7,7 @@ from .basic.TSCTM.TSCTM import TSCTM
 from .basic.ECRTM.ECRTM import ECRTM
 from .basic.XTM.XTM import XTM
 from .basic.XTMv2.XTMv2 import XTMv2
+from .basic.YTM.YTM import YTM
 
 from .crosslingual.NMTM import NMTM
 from .crosslingual.InfoCTM.InfoCTM import InfoCTM
@@ -33,4 +34,5 @@ MODEL_DICT = {
     "TraCo": TraCo,
     "XTM": XTM,
     "XTMv2": XTMv2,
+    "YTM": YTM
 }
