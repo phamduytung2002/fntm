@@ -12,15 +12,21 @@ class YTM(nn.Module):
 
         Xiaobao Wu, Xinshuai Dong, Thong Thanh Nguyen, Anh Tuan Luu.
     '''
-    def __init__(self, vocab_size, num_topics=50, en_units=200, dropout=0., pretrained_WE=None, embed_size=200, beta_temp=0.2, weight_loss_ECR=250.0, alpha_ECR=20.0, sinkhorn_max_iter=1000):
+
+    def __init__(self, vocab_size, num_topics=50, en_units=200, dropout=0.,
+                 pretrained_WE=None, embed_size=200, beta_temp=0.2,
+                 weight_loss_ECR=250.0, alpha_ECR=20.0, sinkhorn_max_iter=1000,
+                 weight_loss_MMI=10.0):
         super().__init__()
 
         self.num_topics = num_topics
         self.beta_temp = beta_temp
 
         self.a = 1 * np.ones((1, num_topics)).astype(np.float32)
-        self.mu2 = nn.Parameter(torch.as_tensor((np.log(self.a).T - np.mean(np.log(self.a), 1)).T))
-        self.var2 = nn.Parameter(torch.as_tensor((((1.0 / self.a) * (1 - (2.0 / num_topics))).T + (1.0 / (num_topics * num_topics)) * np.sum(1.0 / self.a, 1)).T))
+        self.mu2 = nn.Parameter(torch.as_tensor(
+            (np.log(self.a).T - np.mean(np.log(self.a), 1)).T))
+        self.var2 = nn.Parameter(torch.as_tensor(
+            (((1.0 / self.a) * (1 - (2.0 / num_topics))).T + (1.0 / (num_topics * num_topics)) * np.sum(1.0 / self.a, 1)).T))
 
         self.mu2.requires_grad = False
         self.var2.requires_grad = False
@@ -42,17 +48,26 @@ class YTM(nn.Module):
         if pretrained_WE is not None:
             self.word_embeddings = torch.from_numpy(pretrained_WE).float()
         else:
-            self.word_embeddings = nn.init.trunc_normal_(torch.empty(vocab_size, embed_size))
+            self.word_embeddings = nn.init.trunc_normal_(
+                torch.empty(vocab_size, embed_size))
         self.word_embeddings = nn.Parameter(F.normalize(self.word_embeddings))
 
-        self.topic_embeddings = torch.empty((num_topics, self.word_embeddings.shape[1]))
+        self.topic_embeddings = torch.empty(
+            (num_topics, self.word_embeddings.shape[1]))
         nn.init.trunc_normal_(self.topic_embeddings, std=0.1)
-        self.topic_embeddings = nn.Parameter(F.normalize(self.topic_embeddings))
+        self.topic_embeddings = nn.Parameter(
+            F.normalize(self.topic_embeddings))
 
         self.ECR = ECR(weight_loss_ECR, alpha_ECR, sinkhorn_max_iter)
 
+        # for MMI
+        self.prj_bow = nn.Linear(vocab_size, en_units)
+        self.prj_bert = nn.Linear(768, en_units)
+        self.weight_loss_MMI = weight_loss_MMI
+
     def get_beta(self):
-        dist = self.pairwise_euclidean_distance(self.topic_embeddings, self.word_embeddings)
+        dist = self.pairwise_euclidean_distance(
+            self.topic_embeddings, self.word_embeddings)
         beta = F.softmax(-dist / self.beta_temp, dim=0)
         return beta
 
@@ -64,9 +79,22 @@ class YTM(nn.Module):
         else:
             return mu
 
-    def encode(self, input):
+    def get_representation(self, input):
         e1 = F.softplus(self.fc11(input))
         e1 = F.softplus(self.fc12(e1))
+        return e1
+
+    def get_theta_from_representation(self, e1):
+        e1 = self.fc1_dropout(e1)
+        mu = self.mean_bn(self.fc21(e1))
+        logvar = self.logvar_bn(self.fc22(e1))
+        z = self.reparameterize(mu, logvar)
+        theta = F.softmax(z, dim=1)
+        loss_KL = self.compute_loss_KL(mu, logvar)
+        return theta, loss_KL
+
+    def encode(self, input):
+        e1 = self.get_representation(input)
         e1 = self.fc1_dropout(e1)
         mu = self.mean_bn(self.fc21(e1))
         logvar = self.logvar_bn(self.fc22(e1))
@@ -83,9 +111,23 @@ class YTM(nn.Module):
             return theta, loss_KL
         else:
             return theta
-    
+
+    def sim(self, bow, bert):
+        pbow = self.prj_bow(bow)
+        pbert = self.prj_bert(bert)
+        return torch.exp(F.cosine_similarity(pbow, pbert))
+
+    def csim(self, bow, bert):
+        pbow = self.prj_bow(bow)
+        pbert = self.prj_bert(bert)
+        csim_matrix = (pbow@pbert.T) / (pbow.norm(keepdim=True,
+                                                  dim=-1)@pbert.norm(keepdim=True, dim=-1).T)
+        csim_matrix = csim_matrix.normalize(dim=1)
+        return csim_matrix.log()
+
     def compute_loss_MMI(self, input, input_bert):
-        pass
+        sim_matrix = self.sim(input, input_bert)
+        return sim_matrix.diag().mean() * self.weight_loss_MMI
 
     def compute_loss_KL(self, mu, logvar):
         var = logvar.exp()
@@ -94,35 +136,44 @@ class YTM(nn.Module):
         diff_term = diff * diff / self.var2
         logvar_division = self.var2.log() - logvar
         # KLD: N*K
-        KLD = 0.5 * ((var_division + diff_term + logvar_division).sum(axis=1) - self.num_topics)
+        KLD = 0.5 * ((var_division + diff_term +
+                     logvar_division).sum(axis=1) - self.num_topics)
         KLD = KLD.mean()
         return KLD
 
     def get_loss_ECR(self):
-        cost = self.pairwise_euclidean_distance(self.topic_embeddings, self.word_embeddings)
+        cost = self.pairwise_euclidean_distance(
+            self.topic_embeddings, self.word_embeddings)
         loss_ECR = self.ECR(cost)
         return loss_ECR
 
     def pairwise_euclidean_distance(self, x, y):
-        cost = torch.sum(x ** 2, axis=1, keepdim=True) + torch.sum(y ** 2, dim=1) - 2 * torch.matmul(x, y.t())
+        cost = torch.sum(x ** 2, axis=1, keepdim=True) + \
+            torch.sum(y ** 2, dim=1) - 2 * torch.matmul(x, y.t())
         return cost
 
     def forward(self, input):
-        theta, loss_KL = self.encode(input)
+        bow = input["data"]
+        contextual_emb = input["contextual_embed"]
+        theta, loss_KL = self.encode(bow)
         beta = self.get_beta()
 
         recon = F.softmax(self.decoder_bn(torch.matmul(theta, beta)), dim=-1)
-        recon_loss = -(input * recon.log()).sum(axis=1).mean()
+        recon_loss = -(bow * recon.log()).sum(axis=1).mean()
 
         loss_TM = recon_loss + loss_KL
 
         loss_ECR = self.get_loss_ECR()
-        loss = loss_TM + loss_ECR
+
+        loss_MMI = self.compute_loss_MMI(bow, contextual_emb)
+
+        loss = loss_TM + loss_ECR + loss_MMI
 
         rst_dict = {
             'loss': loss,
             'loss_TM': loss_TM,
-            'loss_ECR': loss_ECR
+            'loss_ECR': loss_ECR,
+            'loss_MMI': loss_MMI,
         }
 
         return rst_dict

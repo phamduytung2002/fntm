@@ -260,7 +260,7 @@ class Preprocessing:
                 parsed_text = ' '.join(tokens)
                 test_texts.append(parsed_text)
         
-            test_bert_emb = bert_model.encode(train_texts, batch_size=256, show_progress_bar=True)
+            test_bert_emb = bert_model.encode(test_texts, batch_size=256, show_progress_bar=True)
 
         words, doc_counts = zip(*doc_counts_counter.most_common())
         doc_freqs = np.array(doc_counts) / float(len(train_texts) + len(test_texts))
