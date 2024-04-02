@@ -34,8 +34,8 @@ def tsne_viz(word_embedding, topic_embedding, save_path):
 
     plt.figure(figsize=(10, 5))
     plt.scatter(wt_tsne[:, 0], wt_tsne[:, 1], c=wt_c)
-    for i, txt in enumerate(topic_c):
+    for i, _ in enumerate(topic_c):
         plt.annotate(
-            txt, (wt_tsne[word_c.shape[0] + i, 0], wt_tsne[word_c.shape[0] + i, 1]))
+            str(i), (wt_tsne[word_c.shape[0] + i, 0], wt_tsne[word_c.shape[0] + i, 1]))
     plt.title('Word and Topic Embeddings')
     plt.savefig(save_path)
