@@ -17,6 +17,7 @@ def load_contextual_embed(texts, device, model_name="all-mpnet-base-v2", show_pr
 class DatasetHandler(Dataset):
     def __init__(self, data, contextual_embed=None):
         self.data = data
+        self.contextual_embed = None
         if contextual_embed is not None:
             assert data.shape[0] == contextual_embed.shape[0], "Data and contextual embeddings should have the same number of samples"
             self.contextual_embed = contextual_embed
@@ -28,6 +29,11 @@ class DatasetHandler(Dataset):
     def __getitem__(self, idx):
         if torch.is_tensor(idx):
             idx = idx.tolist()
+
+        if self.contextual_embed is None:
+            return {
+                'data': self.data[idx]
+            }
 
         return {
             'data': self.data[idx],
@@ -107,18 +113,31 @@ class BasicDatasetHandler:
             self.train_data = torch.from_numpy(self.train_data).to(device)
             self.test_data = torch.from_numpy(self.test_data).to(device)
 
-            self.train_contextual_embed = torch.from_numpy(self.train_contextual_embed).to(device)
-            self.test_contextual_embed = torch.from_numpy(self.test_contextual_embed).to(device)
+            if contextual_embed:
 
-            train_dataset = DatasetHandler(
-                self.train_data, self.train_contextual_embed)
-            test_dataset = DatasetHandler(
-                self.test_data, self.test_contextual_embed)
+                self.train_contextual_embed = torch.from_numpy(
+                    self.train_contextual_embed).to(device)
+                self.test_contextual_embed = torch.from_numpy(
+                    self.test_contextual_embed).to(device)
 
-            self.train_dataloader = DataLoader(
-                train_dataset, batch_size=batch_size, shuffle=True)
-            self.test_dataloader = DataLoader(
-                test_dataset, batch_size=batch_size, shuffle=False)
+                train_dataset = DatasetHandler(
+                    self.train_data, self.train_contextual_embed)
+                test_dataset = DatasetHandler(
+                    self.test_data, self.test_contextual_embed)
+
+                self.train_dataloader = DataLoader(
+                    train_dataset, batch_size=batch_size, shuffle=True)
+                self.test_dataloader = DataLoader(
+                    test_dataset, batch_size=batch_size, shuffle=False)
+
+            else:
+                train_dataset = DatasetHandler(self.train_data)
+                test_dataset = DatasetHandler(self.test_data)
+
+                self.train_dataloader = DataLoader(
+                    train_dataset, batch_size=batch_size, shuffle=True)
+                self.test_dataloader = DataLoader(
+                    test_dataset, batch_size=batch_size, shuffle=False)
 
     def load_data(self, path, read_labels):
 

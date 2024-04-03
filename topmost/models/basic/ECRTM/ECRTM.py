@@ -11,7 +11,7 @@ class ECRTM(nn.Module):
 
         Xiaobao Wu, Xinshuai Dong, Thong Thanh Nguyen, Anh Tuan Luu.
     '''
-    def __init__(self, vocab_size, num_topics=50, en_units=200, dropout=0., pretrained_WE=None, embed_size=200, beta_temp=0.2, weight_loss_ECR=250.0, sinkhorn_alpha=20.0, sinkhorn_max_iter=1000):
+    def __init__(self, vocab_size, num_topics=50, en_units=200, dropout=0., pretrained_WE=None, embed_size=200, beta_temp=0.2, weight_loss_ECR=250.0, alpha_ECR=20.0, sinkhorn_max_iter=1000):
         super().__init__()
 
         self.num_topics = num_topics
@@ -48,7 +48,7 @@ class ECRTM(nn.Module):
         nn.init.trunc_normal_(self.topic_embeddings, std=0.1)
         self.topic_embeddings = nn.Parameter(F.normalize(self.topic_embeddings))
 
-        self.ECR = ECR(weight_loss_ECR, sinkhorn_alpha, sinkhorn_max_iter)
+        self.ECR = ECR(weight_loss_ECR, alpha_ECR, sinkhorn_max_iter)
 
     def get_beta(self):
         dist = self.pairwise_euclidean_distance(self.topic_embeddings, self.word_embeddings)
@@ -104,6 +104,7 @@ class ECRTM(nn.Module):
         return cost
 
     def forward(self, input):
+        input = input['data']
         theta, loss_KL = self.encode(input)
         beta = self.get_beta()
 
