@@ -70,7 +70,10 @@ class BasicTrainer:
                 optimizer.step()
 
                 for key in rst_dict:
-                    loss_rst_dict[key] += rst_dict[key] * len(batch_data)
+                    try:
+                        loss_rst_dict[key] += rst_dict[key] * len(batch_data['data'])
+                    except:
+                        loss_rst_dict[key] += rst_dict[key] * len(batch_data)
 
             for key in loss_rst_dict:
                 wandb.log({key: loss_rst_dict[key] / data_size})
