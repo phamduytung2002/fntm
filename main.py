@@ -49,7 +49,7 @@ if __name__ == "__main__":
     # create a model
     pretrainWE = scipy.sparse.load_npz(os.path.join(
         DATA_DIR, args.dataset, "word_embeddings.npz")).toarray()
-    
+
     if args.model == "YTM":
         model = topmost.models.MODEL_DICT[args.model](vocab_size=dataset.vocab_size,
                                                       num_topics=args.num_topics,
@@ -150,5 +150,18 @@ if __name__ == "__main__":
     wandb.log({"TC": TC})
     logger.info(f"TC: {TC:.5f}")
     logger.info(f'TC list: {TC_list}')
+
+    # NPMI
+    NPMI_test = topmost.evaluations.compute_topic_coherence(
+        dataset.test_texts, dataset.vocab, top_words, cv_type='c_npmi')
+    print(f"NPMI_test: {NPMI_test:.5f}")
+    wandb.log({"NPMI_test": NPMI_test})
+    logger.info(f"NPMI_test: {NPMI_test:.5f}")
+
+    NPMI_train = topmost.evaluations.compute_topic_coherence(
+        dataset.train_texts, dataset.vocab, top_words, cv_type='c_npmi')
+    print(f"NPMI_train: {NPMI_train:.5f}")
+    wandb.log({"NPMI_train": NPMI_train})
+    logger.info(f"NPMI_train: {NPMI_train:.5f}")
 
     wandb.finish()
