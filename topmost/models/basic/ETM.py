@@ -63,6 +63,7 @@ class ETM(nn.Module):
         return beta
 
     def forward(self, x, avg_loss=True):
+        x = x['data']
         theta, mu, logvar = self.get_theta(x)
         beta = self.get_beta()
         recon_x = torch.matmul(theta, beta)
