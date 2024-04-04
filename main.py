@@ -27,7 +27,7 @@ if __name__ == "__main__":
 
     logger = log.setup_logger(
         'main', os.path.join(current_run_dir, 'main.log'))
-    wandb.init(project='ntm', config=args)
+    wandb.init(project='ytm_lr', config=args)
     wandb.log({'time_stamp': current_time})
 
     if args.dataset in ['20NG', 'IMDB', 'Rakuten_Amazon',
@@ -115,8 +115,15 @@ if __name__ == "__main__":
     # save beta, theta and top words
     beta = trainer.save_beta(current_run_dir)
     train_theta, test_theta = trainer.save_theta(dataset, current_run_dir)
-    top_words = trainer.save_top_words(
-        dataset.vocab, args.num_top_word, current_run_dir)
+    top_words_10 = trainer.save_top_words(
+        dataset.vocab, 10, current_run_dir)
+    top_words_15 = trainer.save_top_words(
+        dataset.vocab, 15, current_run_dir)
+    top_words_20 = trainer.save_top_words(
+        dataset.vocab, 20, current_run_dir)
+    top_words_25 = trainer.save_top_words(
+        dataset.vocab, 25, current_run_dir)
+
 
     # save word embeddings and topic embeddings
     if args.model in ['ETM', 'ECRTM', 'XTM', 'XTMv2', 'YTM']:
@@ -132,22 +139,22 @@ if __name__ == "__main__":
     # wandb.log({"TD": TD})
     # logger.info(f"TD: {TD:.5f}")
     
-    TD_10 = topmost.evaluations.compute_topic_diversity(10, _type="TD")
+    TD_10 = topmost.evaluations.compute_topic_diversity(top_words_10, _type="TD")
     print(f"TD_10: {TD_10:.5f}")
     wandb.log({"TD_10": TD_10})
     logger.info(f"TD_10: {TD_10:.5f}")
     
-    TD_15 = topmost.evaluations.compute_topic_diversity(15, _type="TD")
+    TD_15 = topmost.evaluations.compute_topic_diversity(top_words_15, _type="TD")
     print(f"TD_15: {TD_15:.5f}")
     wandb.log({"TD_15": TD_15})
     logger.info(f"TD_15: {TD_15:.5f}")
     
-    TD_20 = topmost.evaluations.compute_topic_diversity(20, _type="TD")
+    TD_20 = topmost.evaluations.compute_topic_diversity(top_words_20, _type="TD")
     print(f"TD_20: {TD_20:.5f}")
     wandb.log({"TD_20": TD_20})
     logger.info(f"TD_20: {TD_20:.5f}")
     
-    TD_25 = topmost.evaluations.compute_topic_diversity(25, _type="TD")
+    TD_25 = topmost.evaluations.compute_topic_diversity(top_words_25, _type="TD")
     print(f"TD_25: {TD_25:.5f}")
     wandb.log({"TD_25": TD_25})
     logger.info(f"TD_25: {TD_25:.5f}")
@@ -164,24 +171,58 @@ if __name__ == "__main__":
         logger.info(f"Purity: {clustering_results['Purity']}")
 
     # TC
-    TC_list, TC = topmost.evaluations.topic_coherence.C_V_on_wikipedia(
-        os.path.join(current_run_dir, 'top_words.txt'))
-    print(f"TC: {TC:.5f}")
-    wandb.log({"TC": TC})
-    logger.info(f"TC: {TC:.5f}")
-    logger.info(f'TC list: {TC_list}')
+    TC_10_list, TC_10 = topmost.evaluations.topic_coherence.C_V_on_wikipedia(
+        os.path.join(current_run_dir, 'top_words_10.txt'))
+    print(f"TC_10: {TC_10:.5f}")
+    wandb.log({"TC_10": TC_10})
+    logger.info(f"TC_10: {TC_10:.5f}")
+    logger.info(f'TC_10 list: {TC_10_list}')
+    
+    TC_15_list, TC_15 = topmost.evaluations.topic_coherence.C_V_on_wikipedia(
+        os.path.join(current_run_dir, 'top_words_15.txt'))
+    print(f"TC_15: {TC_15:.5f}")
+    wandb.log({"TC_15": TC_15})
+    logger.info(f"TC_15: {TC_15:.5f}")
+    logger.info(f'TC_15 list: {TC_15_list}')
+    
+    TC_20_list, TC_20 = topmost.evaluations.topic_coherence.C_V_on_wikipedia(
+        os.path.join(current_run_dir, 'top_words_20.txt'))
+    print(f"TC_20: {TC_20:.5f}")
+    wandb.log({"TC_20": TC_20})
+    logger.info(f"TC_20: {TC_20:.5f}")
+    logger.info(f'TC_20 list: {TC_20_list}')
+    
+    TC_25_list, TC_25 = topmost.evaluations.topic_coherence.C_V_on_wikipedia(
+        os.path.join(current_run_dir, 'top_words_25.txt'))
+    print(f"TC_25: {TC_25:.5f}")
+    wandb.log({"TC_25": TC_25})
+    logger.info(f"TC_25: {TC_25:.5f}")
+    logger.info(f'TC_25 list: {TC_25_list}')
+
 
     # NPMI
-    NPMI_test = topmost.evaluations.compute_topic_coherence(
-        dataset.test_texts, dataset.vocab, top_words, cv_type='c_npmi')
-    print(f"NPMI_test: {NPMI_test:.5f}")
-    wandb.log({"NPMI_test": NPMI_test})
-    logger.info(f"NPMI_test: {NPMI_test:.5f}")
+    NPMI_test_10 = topmost.evaluations.compute_topic_coherence(
+        dataset.test_texts, dataset.vocab, top_words_10, cv_type='c_npmi')
+    print(f"NPMI_test_10: {NPMI_test_10:.5f}")
+    wandb.log({"NPMI_test_10": NPMI_test_10})
+    logger.info(f"NPMI_test_10: {NPMI_test_10:.5f}")
 
-    NPMI_train = topmost.evaluations.compute_topic_coherence(
-        dataset.train_texts, dataset.vocab, top_words, cv_type='c_npmi')
-    print(f"NPMI_train: {NPMI_train:.5f}")
-    wandb.log({"NPMI_train": NPMI_train})
-    logger.info(f"NPMI_train: {NPMI_train:.5f}")
+    NPMI_test_15 = topmost.evaluations.compute_topic_coherence(
+        dataset.test_texts, dataset.vocab, top_words_15, cv_type='c_npmi')
+    print(f"NPMI_test_15: {NPMI_test_15:.5f}")
+    wandb.log({"NPMI_test_15": NPMI_test_15})
+    logger.info(f"NPMI_test_15: {NPMI_test_15:.5f}")
+
+    NPMI_test_20 = topmost.evaluations.compute_topic_coherence(
+        dataset.test_texts, dataset.vocab, top_words_20, cv_type='c_npmi')
+    print(f"NPMI_test_20: {NPMI_test_20:.5f}")
+    wandb.log({"NPMI_test_20": NPMI_test_20})
+    logger.info(f"NPMI_test_20: {NPMI_test_20:.5f}")
+
+    NPMI_test_25 = topmost.evaluations.compute_topic_coherence(
+        dataset.test_texts, dataset.vocab, top_words_25, cv_type='c_npmi')
+    print(f"NPMI_test_25: {NPMI_test_25:.5f}")
+    wandb.log({"NPMI_test_25": NPMI_test_25})
+    logger.info(f"NPMI_test_25: {NPMI_test_25:.5f}")
 
     wandb.finish()
