@@ -127,10 +127,30 @@ if __name__ == "__main__":
 
     # model evaluation
     # TD
-    TD = topmost.evaluations.compute_topic_diversity(top_words, _type="TD")
-    print(f"TD: {TD:.5f}")
-    wandb.log({"TD": TD})
-    logger.info(f"TD: {TD:.5f}")
+    # TD = topmost.evaluations.compute_topic_diversity(top_words, _type="TD")
+    # print(f"TD: {TD:.5f}")
+    # wandb.log({"TD": TD})
+    # logger.info(f"TD: {TD:.5f}")
+    
+    TD_10 = topmost.evaluations.compute_topic_diversity(10, _type="TD")
+    print(f"TD_10: {TD_10:.5f}")
+    wandb.log({"TD_10": TD_10})
+    logger.info(f"TD_10: {TD_10:.5f}")
+    
+    TD_15 = topmost.evaluations.compute_topic_diversity(15, _type="TD")
+    print(f"TD_15: {TD_15:.5f}")
+    wandb.log({"TD_15": TD_15})
+    logger.info(f"TD_15: {TD_15:.5f}")
+    
+    TD_20 = topmost.evaluations.compute_topic_diversity(20, _type="TD")
+    print(f"TD_20: {TD_20:.5f}")
+    wandb.log({"TD_20": TD_20})
+    logger.info(f"TD_20: {TD_20:.5f}")
+    
+    TD_25 = topmost.evaluations.compute_topic_diversity(25, _type="TD")
+    print(f"TD_25: {TD_25:.5f}")
+    wandb.log({"TD_25": TD_25})
+    logger.info(f"TD_25: {TD_25:.5f}")
 
     # evaluating clustering
     if read_labels:
