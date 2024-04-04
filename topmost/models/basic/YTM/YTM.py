@@ -61,8 +61,10 @@ class YTM(nn.Module):
         self.ECR = ECR(weight_loss_ECR, alpha_ECR, sinkhorn_max_iter)
 
         # for MMI
-        self.prj_rep = nn.Linear(en_units, en_units)
-        self.prj_bert = nn.Linear(768, en_units)
+        self.prj_rep = nn.Sequential(nn.Linear(en_units, en_units),
+                                     nn.Dropout(dropout))
+        self.prj_bert = nn.Sequential(nn.Linear(768, en_units),
+                                      nn.Dropout(dropout))
         self.weight_loss_MMI = weight_loss_MMI
 
     def get_beta(self):
@@ -82,10 +84,10 @@ class YTM(nn.Module):
     def get_representation(self, input):
         e1 = F.softplus(self.fc11(input))
         e1 = F.softplus(self.fc12(e1))
+        e1 = self.fc1_dropout(e1)
         return e1
 
     def get_theta_from_representation(self, e1):
-        e1 = self.fc1_dropout(e1)
         mu = self.mean_bn(self.fc21(e1))
         logvar = self.logvar_bn(self.fc22(e1))
         z = self.reparameterize(mu, logvar)
@@ -95,7 +97,6 @@ class YTM(nn.Module):
 
     def encode(self, input):
         e1 = self.get_representation(input)
-        e1 = self.fc1_dropout(e1)
         mu = self.mean_bn(self.fc21(e1))
         logvar = self.logvar_bn(self.fc22(e1))
         z = self.reparameterize(mu, logvar)
