@@ -82,8 +82,8 @@ class YTM(nn.Module):
             return mu
 
     def get_representation(self, input):
-        e1 = F.softplus(self.fc11(input))
-        e1 = F.softplus(self.fc12(e1))
+        e1 = F.relu(self.fc11(input))
+        e1 = F.relu(self.fc12(e1))
         e1 = self.fc1_dropout(e1)
         return e1
 
