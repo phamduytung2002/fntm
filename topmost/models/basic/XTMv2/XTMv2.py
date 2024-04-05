@@ -6,6 +6,18 @@ from .ECR import ECR
 from .XGR import XGR
 
 
+class L2gating(nn.Module):
+    def __init__(self, vocab_size, num_groups):
+        super().__init__()
+        self.emb = torch.empty(num_groups, vocab_size)
+        self.emb = nn.init.trunc_normal_(self.emb)
+        self.emb = nn.Parameter(self.emb, requires_grad=True)   
+
+    def __call__(self, x):
+        cdist = torch.cdist(x, self.emb)
+        return -cdist
+
+
 class XTMv2(nn.Module):
     def __init__(self, vocab_size, num_topics=50, num_groups=10, en_units=200,
                  dropout=0., pretrained_WE=None, embed_size=200, beta_temp=0.2,
@@ -26,7 +38,15 @@ class XTMv2(nn.Module):
         self.mu2.requires_grad = False
         self.var2.requires_grad = False
 
-        self.gating_alpha = nn.Sequential(nn.Linear(vocab_size, num_groups, bias=False),
+        '''
+            self.moe_emb = nn.Embedding(vocab_size, num_groups)
+            
+        '''
+        
+        # self.gating_alpha = nn.Sequential(L2gating(vocab_size, num_groups),
+        #                                   nn.Softmax(dim=-1))
+
+        self.gating_alpha = nn.Sequential(nn.Linear(vocab_size, num_groups, bias=True),
                                           nn.Softmax(dim=-1))
 
         self.fc11 = nn.Linear(vocab_size, en_units)
@@ -153,6 +173,7 @@ class XTMv2(nn.Module):
         return cost
 
     def forward(self, input):
+        input = input['data']
         theta, loss_KL_gauss, loss_KL_ber = self.encode(input)
         beta = self.get_beta()
 

@@ -71,7 +71,8 @@ class BasicTrainer:
 
                 for key in rst_dict:
                     try:
-                        loss_rst_dict[key] += rst_dict[key] * len(batch_data['data'])
+                        loss_rst_dict[key] += rst_dict[key] * \
+                            len(batch_data['data'])
                     except:
                         loss_rst_dict[key] += rst_dict[key] * len(batch_data)
 
@@ -125,7 +126,7 @@ class BasicTrainer:
 
     def save_top_words(self, vocab, num_top_words, dir_path):
         top_words = self.export_top_words(vocab, num_top_words)
-        with open(os.path.join(dir_path, 'top_words.txt'), 'w') as f:
+        with open(os.path.join(dir_path, f'top_words_{num_top_words}.txt'), 'w') as f:
             for i, words in enumerate(top_words):
                 f.write(words + '\n')
         return top_words
@@ -145,5 +146,6 @@ class BasicTrainer:
             topic_embeddings = self.model.topic_embeddings.detach().cpu().numpy()
             np.save(os.path.join(dir_path, 'topic_embeddings.npy'),
                     topic_embeddings)
-            self.logger.info(f'topic_embeddings size: {topic_embeddings.shape}')
+            self.logger.info(
+                f'topic_embeddings size: {topic_embeddings.shape}')
         return word_embeddings, topic_embeddings
