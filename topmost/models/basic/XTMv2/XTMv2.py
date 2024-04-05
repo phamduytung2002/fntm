@@ -16,7 +16,7 @@ class L2gating(nn.Module):
     def __call__(self, x):
         cdist = torch.cdist(x, self.emb)
         return -cdist
-    
+
 
 class SetToNegInf(nn.Module):
     def __init__(self, eps):
@@ -25,28 +25,44 @@ class SetToNegInf(nn.Module):
 
     def forward(self, input_tensor):
         # Create a mask tensor where elements less than eps are marked as True
-        mask = torch.logical_or((input_tensor < self.eps), (input_tensor == torch.inf))
-        
+        mask = torch.logical_or((input_tensor < self.eps),
+                                (input_tensor == torch.inf))
+
         # Use torch.where to conditionally set elements to -inf
-        output_tensor = torch.where(mask, torch.tensor(float('-inf'), dtype=input_tensor.dtype, device=input_tensor.device), input_tensor)
-        
+        output_tensor = torch.where(mask, torch.tensor(float(
+            '-inf'), dtype=input_tensor.dtype, device=input_tensor.device), input_tensor)
+
         # Save the mask for backward pass
         self.mask = mask
-        
+
         return output_tensor
-    
+
     def backward(self, grad_output):
         # Create a zero tensor with the same shape as the input tensor
         grad_input = torch.zeros_like(grad_output)
-        
+
         # Set the gradient only for elements where mask is False (not set to -inf)
         grad_input[self.mask == False] = grad_output[self.mask == False]
         grad_input[torch.isnan(grad_input)] = 0
 
-        
         print('set neg inf grad: ', grad_input)
-        
+
         return grad_input
+
+
+def masked_softmax(x, mask):
+    x_mask = x * mask
+    max_x_mask = torch.max(x_mask, dim=-1, keepdim=True).values
+    x_mask = x_mask - max_x_mask
+    exp_x_mask = torch.exp(x_mask) * mask
+    sum_exp_x_mask = torch.sum(exp_x_mask, dim=-1, keepdim=True)
+    return exp_x_mask / sum_exp_x_mask
+    
+    x_exp = torch.exp(x)
+    x_exp_mask = x_exp * mask
+    max_x_exp_mask = torch.max(x_exp_mask, dim=-1, keepdim=True)
+    sum_masked_x_exp = torch.sum(x_exp*mask, dim=-1, keepdim=True)
+    return (x_exp_mask / sum_masked_x_exp) * mask.float()
 
 
 class XTMv2(nn.Module):
@@ -68,7 +84,6 @@ class XTMv2(nn.Module):
 
         self.mu2.requires_grad = False
         self.var2.requires_grad = False
-
 
         # self.gating_alpha = nn.Sequential(L2gating(vocab_size, num_groups),
         #                                   nn.Softmax(dim=-1))
@@ -152,29 +167,27 @@ class XTMv2(nn.Module):
         p = self.gating_alpha(input)
         p = p.clamp(eps, 1-eps)
         alpha = F.gumbel_softmax(torch.log(p), tau=1e-2)
-        alpha = self.set_neg_inf(alpha)
+        # alpha = self.set_neg_inf(alpha)
         alpha_all_topics = alpha.unsqueeze(dim=-1) \
                                 .repeat(*[[1]*alpha.ndim + [self.num_topics_per_group]]) \
                                 .flatten(start_dim=-2)
 
-        print('alpha: ', alpha[0])
-        print('alpha_all_topics: ', alpha_all_topics[0])
-        print('z: ', z[0])
-        
-        print((alpha_all_topics * z)[0])
+        theta = masked_softmax(alpha_all_topics * z, alpha_all_topics >= eps)
 
-        theta = F.softmax(self.set_neg_inf(alpha_all_topics * z), dim=1)
-        
-        print('theta: ', theta[0])
+        nan_indices = torch.where(torch.isnan(theta))
+        # print(nan_indices[0])
+        # print(len(nan_indices[0]))
+        if len(nan_indices[0]) > 0:
+            x = nan_indices[0][0]
+            y = nan_indices[1][0]
+            # print(nan_indices)
+            # print(alpha_all_topics[x, :])
+            # print(z[x, :])
+            # print(theta[x, :])
 
         loss_KL_gauss = self.compute_loss_KL_gauss(
             mu, logvar)
         loss_KL_ber = self.compute_loss_KL_ber(p)
-        
-        print('loss_KL_gauss: ', loss_KL_gauss)
-        print('loss_KL_ber: ', loss_KL_ber)
-
-        # exit(0)
 
         return theta, loss_KL_gauss, loss_KL_ber
 
