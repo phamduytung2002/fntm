@@ -11,11 +11,42 @@ class L2gating(nn.Module):
         super().__init__()
         self.emb = torch.empty(num_groups, vocab_size)
         self.emb = nn.init.trunc_normal_(self.emb)
-        self.emb = nn.Parameter(self.emb, requires_grad=True)   
+        self.emb = nn.Parameter(self.emb, requires_grad=True)
 
     def __call__(self, x):
         cdist = torch.cdist(x, self.emb)
         return -cdist
+    
+
+class SetToNegInf(nn.Module):
+    def __init__(self, eps):
+        super(SetToNegInf, self).__init__()
+        self.eps = eps
+
+    def forward(self, input_tensor):
+        # Create a mask tensor where elements less than eps are marked as True
+        mask = torch.logical_or((input_tensor < self.eps), (input_tensor == torch.inf))
+        
+        # Use torch.where to conditionally set elements to -inf
+        output_tensor = torch.where(mask, torch.tensor(float('-inf'), dtype=input_tensor.dtype, device=input_tensor.device), input_tensor)
+        
+        # Save the mask for backward pass
+        self.mask = mask
+        
+        return output_tensor
+    
+    def backward(self, grad_output):
+        # Create a zero tensor with the same shape as the input tensor
+        grad_input = torch.zeros_like(grad_output)
+        
+        # Set the gradient only for elements where mask is False (not set to -inf)
+        grad_input[self.mask == False] = grad_output[self.mask == False]
+        grad_input[torch.isnan(grad_input)] = 0
+
+        
+        print('set neg inf grad: ', grad_input)
+        
+        return grad_input
 
 
 class XTMv2(nn.Module):
@@ -38,16 +69,13 @@ class XTMv2(nn.Module):
         self.mu2.requires_grad = False
         self.var2.requires_grad = False
 
-        '''
-            self.moe_emb = nn.Embedding(vocab_size, num_groups)
-            
-        '''
-        
+
         # self.gating_alpha = nn.Sequential(L2gating(vocab_size, num_groups),
         #                                   nn.Softmax(dim=-1))
 
         self.gating_alpha = nn.Sequential(nn.Linear(vocab_size, num_groups, bias=True),
                                           nn.Softmax(dim=-1))
+        self.set_neg_inf = SetToNegInf(1e-8)
 
         self.fc11 = nn.Linear(vocab_size, en_units)
         self.fc12 = nn.Linear(en_units, en_units)
@@ -103,6 +131,16 @@ class XTMv2(nn.Module):
         else:
             return mu
 
+    def set_to_neg_inf(self, input_tensor, eps):
+        # Create a mask tensor where elements less than eps are marked as True
+        mask = input_tensor < eps
+
+        # Use torch.where to conditionally set elements to -inf
+        output_tensor = torch.where(mask, torch.tensor(float(
+            '-inf'), dtype=input_tensor.dtype, device=input_tensor.device), input_tensor)
+
+        return output_tensor
+
     def encode(self, input, eps=1e-8):
         e1 = F.softplus(self.fc11(input))
         e1 = F.softplus(self.fc12(e1))
@@ -114,15 +152,27 @@ class XTMv2(nn.Module):
         p = self.gating_alpha(input)
         p = p.clamp(eps, 1-eps)
         alpha = F.gumbel_softmax(torch.log(p), tau=1e-2)
+        alpha = self.set_neg_inf(alpha)
         alpha_all_topics = alpha.unsqueeze(dim=-1) \
                                 .repeat(*[[1]*alpha.ndim + [self.num_topics_per_group]]) \
                                 .flatten(start_dim=-2)
 
-        theta = F.softmax(alpha_all_topics * z, dim=1)
+        print('alpha: ', alpha[0])
+        print('alpha_all_topics: ', alpha_all_topics[0])
+        print('z: ', z[0])
+        
+        print((alpha_all_topics * z)[0])
+
+        theta = F.softmax(self.set_neg_inf(alpha_all_topics * z), dim=1)
+        
+        print('theta: ', theta[0])
 
         loss_KL_gauss = self.compute_loss_KL_gauss(
             mu, logvar)
         loss_KL_ber = self.compute_loss_KL_ber(p)
+        
+        print('loss_KL_gauss: ', loss_KL_gauss)
+        print('loss_KL_ber: ', loss_KL_ber)
 
         # exit(0)
 

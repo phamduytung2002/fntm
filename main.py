@@ -10,7 +10,7 @@ RESULT_DIR = 'results'
 DATA_DIR = 'data'
 
 if __name__ == "__main__":
-    # torch.autograd.set_detect_anomaly(mode=True, check_nan=True)
+    torch.autograd.set_detect_anomaly(mode=True, check_nan=True)
     parser = config.new_parser()
     config.add_dataset_argument(parser)
     config.add_model_argument(parser)
