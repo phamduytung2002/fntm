@@ -34,6 +34,12 @@ if __name__ == "__main__":
                          ).reshape(-1, config_args.num_topics)
     word_embeddings = np.load(os.path.join(dir, 'word_embeddings.npy'))
     topic_embeddings = np.load(os.path.join(dir, 'topic_embeddings.npy'))
+    
+    print((train_theta != 0.).sum(axis=0)[:50])
+    
+    print((test_theta != 0.).sum(axis=0)[:50])
+    
+    exit(0)
 
     # tsne visualization
     miscellaneous.tsne_viz(word_embeddings, topic_embeddings,
