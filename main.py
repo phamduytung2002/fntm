@@ -27,7 +27,7 @@ if __name__ == "__main__":
 
     logger = log.setup_logger(
         'main', os.path.join(current_run_dir, 'main.log'))
-    wandb.init(project='xtmv2', config=args)
+    wandb.init(project='xtmv3', config=args)
     wandb.log({'time_stamp': current_time})
 
     if args.dataset in ['20NG', 'IMDB', 'Rakuten_Amazon',
@@ -68,6 +68,16 @@ if __name__ == "__main__":
                                                       weight_loss_ECR=args.weight_ECR,
                                                       alpha_ECR=args.alpha_ECR,
                                                       alpha_XGR=args.alpha_XGR)
+    elif args.model == 'XTMv3':
+        model = topmost.models.MODEL_DICT[args.model](vocab_size=dataset.vocab_size,
+                                                      num_topics=args.num_topics,
+                                                      num_groups=10,
+                                                      dropout=args.dropout,
+                                                      pretrained_WE=pretrainWE if args.use_pretrainWE else None,
+                                                      weight_loss_XGR=args.weight_XGR,
+                                                      weight_loss_ECR=args.weight_ECR,
+                                                      alpha_ECR=args.alpha_ECR,
+                                                      alpha_XGR=args.alpha_XGR)
     elif args.model == 'XTM':
         model = topmost.models.MODEL_DICT[args.model](vocab_size=dataset.vocab_size,
                                                       num_topics=args.num_topics,
@@ -93,6 +103,9 @@ if __name__ == "__main__":
         model.weight_loss_XGR = args.weight_XGR
         model.weight_loss_ECR = args.weight_ECR
     if args.model == 'XTMv2':
+        model.weight_loss_XGR = args.weight_XGR
+        model.weight_loss_ECR = args.weight_ECR
+    if args.model == 'XTMv3':
         model.weight_loss_XGR = args.weight_XGR
         model.weight_loss_ECR = args.weight_ECR
     if args.model == 'XTM':
@@ -129,7 +142,7 @@ if __name__ == "__main__":
 
 
     # save word embeddings and topic embeddings
-    if args.model in ['ETM', 'ECRTM', 'XTM', 'XTMv2', 'YTM']:
+    if args.model in ['ETM', 'ECRTM', 'XTM', 'XTMv2', 'YTM', 'XTMv3']:
         trainer.save_embeddings(current_run_dir)
         miscellaneous.tsne_viz(model.word_embeddings.detach().cpu().numpy(),
                             model.topic_embeddings.detach().cpu().numpy(),
