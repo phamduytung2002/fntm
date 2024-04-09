@@ -6,15 +6,16 @@ from .ECR import ECR
 from .XGR import XGR
 
 
-class L2gating(nn.Module):
-    def __init__(self, vocab_size, num_groups):
+class Distgating(nn.Module):
+    def __init__(self, vocab_size, num_groups, p):
         super().__init__()
+        self.p = p
         self.emb = torch.empty(num_groups, vocab_size)
         self.emb = nn.init.trunc_normal_(self.emb)
         self.emb = nn.Parameter(self.emb, requires_grad=True)
 
     def __call__(self, x):
-        cdist = torch.cdist(x, self.emb)
+        cdist = torch.cdist(x, self.emb, p=self.p)
         return -cdist
 
 
@@ -69,7 +70,8 @@ class XTMv3(nn.Module):
     def __init__(self, vocab_size, num_topics=50, num_groups=10, en_units=200,
                  dropout=0., pretrained_WE=None, embed_size=200, beta_temp=0.2,
                  weight_loss_XGR=250.0, weight_loss_ECR=250.0,
-                 alpha_ECR=20.0, alpha_XGR=4.0, sinkhorn_max_iter=1000):
+                 alpha_ECR=20.0, alpha_XGR=4.0, sinkhorn_max_iter=1000,
+                 gating_func='dot', weight_global_expert=250., weight_local_expert=250.):
         super().__init__()
 
         self.num_topics = num_topics
@@ -87,10 +89,28 @@ class XTMv3(nn.Module):
 
         # self.gating_alpha = nn.Sequential(L2gating(vocab_size, num_groups),
         #                                   nn.Softmax(dim=-1))
+        
+        if gating_func == 'dot':
+            self.gating_alpha = nn.Sequential(
+                nn.Linear(vocab_size, num_groups, bias=False))
+        elif gating_func == 'dot_bias':
+            self.gating_alpha = nn.Sequential(
+                nn.Linear(vocab_size, num_groups, bias=True))
+        elif gating_func == 'L1':
+            self.gating_alpha = nn.Sequential(
+                Distgating(vocab_size, num_groups, 1))
+        elif gating_func == 'L2':
+            self.gating_alpha = nn.Sequential(
+                Distgating(vocab_size, num_groups, 2))
+        else:
+            raise NotImplementedError
+                
+        self.weight_global_expert = weight_global_expert
+        self.weight_local_expert = weight_local_expert
 
-        self.gating_alpha = nn.Sequential(
-            nn.Linear(vocab_size, num_groups, bias=True),)
-        self.set_neg_inf = SetToNegInf(1e-8)
+        # self.gating_alpha = nn.Sequential(
+        #     nn.Linear(vocab_size, num_groups, bias=True),)
+        # self.set_neg_inf = SetToNegInf(1e-8)
 
         self.fc11 = nn.Linear(vocab_size, en_units)
         self.fc12 = nn.Linear(en_units, en_units)
@@ -156,9 +176,12 @@ class XTMv3(nn.Module):
 
         return output_tensor
 
-    def global_expert_entropy_loss(self, p):
+    def global_expert_neg_entropy_loss(self, p):
         sum_p = torch.mean(p, dim=0)
-        return torch.mean(sum_p * torch.log(sum_p + 1e-8))
+        return torch.mean(sum_p * torch.log(sum_p + 1e-8)) * self.weight_global_expert
+    
+    def local_expert_entropy_loss(self, p):
+        return -torch.sum(p * torch.log(p + 1e-8), axis=1).mean() * self.weight_local_expert
 
     def encode(self, input, eps=1e-8):
         e1 = F.softplus(self.fc11(input))
@@ -192,8 +215,10 @@ class XTMv3(nn.Module):
         # print(z.shape)
         # print(p_all_topics.shape)
 
-        # global_loss = self.global_expert_entropy_loss(p)
-        global_loss = 0.
+        p_softmax = F.softmax(p)
+        global_loss = self.global_expert_neg_entropy_loss(p_softmax)
+        local_loss = self.local_expert_entropy_loss(p_softmax)
+        # global_loss = 0.
 
         theta = masked_softmax(p_all_topics * z, p_all_topics_mask)
         # print(theta[0])
@@ -217,12 +242,12 @@ class XTMv3(nn.Module):
         # print('loss KL gauss: ', loss_KL_gauss)
         # print('global loss: ', global_loss)
 
-        return theta, loss_KL_gauss, loss_KL_ber, global_loss
+        return theta, loss_KL_gauss, loss_KL_ber, global_loss, local_loss
 
     def get_theta(self, input):
-        theta, loss_KL_gauss, loss_KL_ber, global_loss = self.encode(input)
+        theta, loss_KL_gauss, loss_KL_ber, global_loss, local_loss = self.encode(input)
         if self.training:
-            return theta, loss_KL_gauss, loss_KL_ber, global_loss
+            return theta, loss_KL_gauss, loss_KL_ber, global_loss, local_loss
         else:
             return theta
 
@@ -265,13 +290,13 @@ class XTMv3(nn.Module):
 
     def forward(self, input):
         input = input['data']
-        theta, loss_KL_gauss, loss_KL_ber, global_loss = self.encode(input)
+        theta, loss_KL_gauss, loss_KL_ber, global_loss, local_loss = self.encode(input)
         beta = self.get_beta()
 
         recon = F.softmax(self.decoder_bn(torch.matmul(theta, beta)), dim=-1)
         recon_loss = -(input * recon.log()).sum(axis=1).mean()
 
-        loss_TM = recon_loss + loss_KL_gauss + loss_KL_ber + global_loss
+        loss_TM = recon_loss + loss_KL_gauss + loss_KL_ber + global_loss + local_loss
 
         loss_ECR = self.get_loss_ECR()
         loss_XGR = self.get_loss_XGR()
@@ -284,7 +309,8 @@ class XTMv3(nn.Module):
             'loss_KL_ber': loss_KL_ber,
             'loss_ECR': loss_ECR,
             'loss_XGR': loss_XGR,
-            'global_loss': global_loss
+            'global_loss': global_loss,
+            'local_loss': local_loss
         }
 
         return rst_dict

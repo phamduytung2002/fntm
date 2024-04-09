@@ -77,7 +77,10 @@ if __name__ == "__main__":
                                                       weight_loss_XGR=args.weight_XGR,
                                                       weight_loss_ECR=args.weight_ECR,
                                                       alpha_ECR=args.alpha_ECR,
-                                                      alpha_XGR=args.alpha_XGR)
+                                                      alpha_XGR=args.alpha_XGR,
+                                                      gating_func=args.gating_func,
+                                                      weight_global_expert=args.weight_global_expert,
+                                                      weight_local_expert=args.weight_local_expert)
     elif args.model == 'XTM':
         model = topmost.models.MODEL_DICT[args.model](vocab_size=dataset.vocab_size,
                                                       num_topics=args.num_topics,

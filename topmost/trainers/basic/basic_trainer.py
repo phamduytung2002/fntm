@@ -7,6 +7,7 @@ from topmost.utils import static_utils
 import wandb
 import logging
 import os
+import scipy
 
 
 class BasicTrainer:
@@ -135,6 +136,11 @@ class BasicTrainer:
         train_theta, test_theta = self.export_theta(dataset_handler)
         np.save(os.path.join(dir_path, 'train_theta.npy'), train_theta)
         np.save(os.path.join(dir_path, 'test_theta.npy'), test_theta)
+        
+        train_argmax_theta = np.argmax(train_theta, axis=1)
+        test_argmax_theta = np.argmax(test_theta, axis=1)
+        np.save(os.path.join(dir_path, 'train_argmax_theta.npy'), train_argmax_theta)
+        np.save(os.path.join(dir_path, 'test_argmax_theta.npy'), test_argmax_theta)
         return train_theta, test_theta
 
     def save_embeddings(self, dir_path):
@@ -148,4 +154,7 @@ class BasicTrainer:
                     topic_embeddings)
             self.logger.info(
                 f'topic_embeddings size: {topic_embeddings.shape}')
+
+            topic_dist = scipy.spatial.distance.cdist(topic_embeddings, topic_embeddings)
+            np.save(os.path.join(dir_path, 'topic_dist.npy'), topic_dist)
         return word_embeddings, topic_embeddings
