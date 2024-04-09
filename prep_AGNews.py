@@ -27,6 +27,6 @@ def to_jsonlist(link, save_dir):
 to_jsonlist(train_link, 'datasets\\AGNews\\train.jsonlist')
 to_jsonlist(test_link, 'datasets\\AGNews\\test.jsonlist')
 
-prep = Preprocessing(test_sample_size=2500, vocab_size=5000, stopwords='data\\stopwords\\snowball_stopwords.txt')
+prep = Preprocessing(vocab_size=5000, stopwords='data\\stopwords\\snowball_stopwords.txt')
 rst = prep.preprocess_jsonlist('datasets\\AGNews', label_name='label')
 prep.save('datasets\\AGNews', **rst)
