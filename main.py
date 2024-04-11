@@ -30,8 +30,8 @@ if __name__ == "__main__":
     wandb.init(project='xtmv3', config=args)
     wandb.log({'time_stamp': current_time})
 
-    if args.dataset in ['20NG', 'IMDB', 'Rakuten_Amazon',
-                        'NYT', 'ECNews', 'Amazon_Review']:
+    if args.dataset in ['20NG', 'IMDB', 'Rakuten_Amazon', 'NYT', 'ECNews',
+                        'Amazon_Review', 'AGNews']:
         read_labels = True
     else:
         read_labels = False
