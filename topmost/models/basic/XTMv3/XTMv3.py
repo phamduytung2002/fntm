@@ -89,7 +89,7 @@ class XTMv3(nn.Module):
 
         # self.gating_alpha = nn.Sequential(L2gating(vocab_size, num_groups),
         #                                   nn.Softmax(dim=-1))
-        
+
         if gating_func == 'dot':
             self.gating_alpha = nn.Sequential(
                 nn.Linear(vocab_size, num_groups, bias=False))
@@ -104,7 +104,7 @@ class XTMv3(nn.Module):
                 Distgating(vocab_size, num_groups, 2))
         else:
             raise NotImplementedError
-                
+
         self.weight_global_expert = weight_global_expert
         self.weight_local_expert = weight_local_expert
 
@@ -179,7 +179,7 @@ class XTMv3(nn.Module):
     def global_expert_neg_entropy_loss(self, p):
         sum_p = torch.mean(p, dim=0)
         return torch.mean(sum_p * torch.log(sum_p + 1e-8)) * self.weight_global_expert
-    
+
     def local_expert_entropy_loss(self, p):
         return -torch.sum(p * torch.log(p + 1e-8), axis=1).mean() * self.weight_local_expert
 
@@ -204,48 +204,22 @@ class XTMv3(nn.Module):
             .repeat(*[[1]*p_topk_mask.ndim + [self.num_topics_per_group]]) \
             .flatten(start_dim=-2)
 
-        # print('p shape: ', p.shape)
-        # print('p0: ', p[0])
-        # print('p_topk_indices shape: ', p_topk_indices.shape)
-        # print('p_topk_indices0: ', p_topk_indices[0])
-        # print('p_topk_mask shape: ', p_topk_mask.shape)
-        # print('p_topk_mask0: ', p_topk_mask[0])
-
-        # print(p_all_topics_mask)
-        # print(z.shape)
-        # print(p_all_topics.shape)
 
         p_softmax = F.softmax(p)
         global_loss = self.global_expert_neg_entropy_loss(p_softmax)
         local_loss = self.local_expert_entropy_loss(p_softmax)
-        # global_loss = 0.
 
         theta = masked_softmax(p_all_topics * z, p_all_topics_mask)
-        # print(theta[0])
-
-        # nan_indices = torch.where(torch.isnan(theta))
-        # print(nan_indices[0])
-        # print(len(nan_indices[0]))
-        # if len(nan_indices[0]) > 0:
-        #     x = nan_indices[0][0]
-        #     y = nan_indices[1][0]
-        #     print(nan_indices)
-        #     print(p_all_topics_mask[x, :])
-        #     print(z[x, :])
-        #     print(theta[x, :])
 
         loss_KL_gauss = self.compute_loss_KL_gauss(
             mu, logvar)
-        # loss_KL_ber = self.compute_loss_KL_ber(p)
         loss_KL_ber = 0.
-
-        # print('loss KL gauss: ', loss_KL_gauss)
-        # print('global loss: ', global_loss)
 
         return theta, loss_KL_gauss, loss_KL_ber, global_loss, local_loss
 
     def get_theta(self, input):
-        theta, loss_KL_gauss, loss_KL_ber, global_loss, local_loss = self.encode(input)
+        theta, loss_KL_gauss, loss_KL_ber, global_loss, local_loss = self.encode(
+            input)
         if self.training:
             return theta, loss_KL_gauss, loss_KL_ber, global_loss, local_loss
         else:
@@ -290,7 +264,8 @@ class XTMv3(nn.Module):
 
     def forward(self, input):
         input = input['data']
-        theta, loss_KL_gauss, loss_KL_ber, global_loss, local_loss = self.encode(input)
+        theta, loss_KL_gauss, loss_KL_ber, global_loss, local_loss = self.encode(
+            input)
         beta = self.get_beta()
 
         recon = F.softmax(self.decoder_bn(torch.matmul(theta, beta)), dim=-1)

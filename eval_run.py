@@ -39,6 +39,10 @@ if __name__ == "__main__":
     
     print((test_theta != 0.).sum(axis=0)[:50])
     
+    print(train_theta.argmax(axis=1))
+    
+    print(test_theta.argmax(axis=1))
+    
     exit(0)
 
     # tsne visualization

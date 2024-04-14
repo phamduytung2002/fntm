@@ -15,6 +15,7 @@ def add_dataset_argument(parser):
 def add_model_argument(parser):
     parser.add_argument('--model', type=str, help='model name')
     parser.add_argument('--num_topics', type=int, default=50)
+    parser.add_argument('--num_groups', type=int, default=10)
     parser.add_argument('--num_top_word', type=int, default=15)
     parser.add_argument('--dropout', type=float, default=0.4)
     parser.add_argument('--use_pretrainWE', action='store_true',

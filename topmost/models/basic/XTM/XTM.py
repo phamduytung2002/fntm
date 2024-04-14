@@ -129,6 +129,7 @@ class XTM(nn.Module):
         return cost
 
     def forward(self, input):
+        input = input['data']
         theta, loss_KL = self.encode(input)
         beta = self.get_beta()
 

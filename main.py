@@ -61,7 +61,7 @@ if __name__ == "__main__":
     elif args.model == 'XTMv2':
         model = topmost.models.MODEL_DICT[args.model](vocab_size=dataset.vocab_size,
                                                       num_topics=args.num_topics,
-                                                      num_groups=10,
+                                                      num_groups=args.num_groups,
                                                       dropout=args.dropout,
                                                       pretrained_WE=pretrainWE if args.use_pretrainWE else None,
                                                       weight_loss_XGR=args.weight_XGR,
@@ -71,7 +71,7 @@ if __name__ == "__main__":
     elif args.model == 'XTMv3':
         model = topmost.models.MODEL_DICT[args.model](vocab_size=dataset.vocab_size,
                                                       num_topics=args.num_topics,
-                                                      num_groups=10,
+                                                      num_groups=args.num_groups,
                                                       dropout=args.dropout,
                                                       pretrained_WE=pretrainWE if args.use_pretrainWE else None,
                                                       weight_loss_XGR=args.weight_XGR,
@@ -84,7 +84,7 @@ if __name__ == "__main__":
     elif args.model == 'XTM':
         model = topmost.models.MODEL_DICT[args.model](vocab_size=dataset.vocab_size,
                                                       num_topics=args.num_topics,
-                                                      num_groups=10,
+                                                      num_groups=args.num_groups,
                                                       dropout=args.dropout,
                                                       pretrained_WE=pretrainWE if args.use_pretrainWE else None,
                                                       weight_loss_XGR=args.weight_XGR,
@@ -127,7 +127,6 @@ if __name__ == "__main__":
 
     # for _ in range(20):
 
-
     # train the model
     trainer.train(dataset)
 
@@ -143,13 +142,16 @@ if __name__ == "__main__":
     top_words_25 = trainer.save_top_words(
         dataset.vocab, 25, current_run_dir)
 
-
     # save word embeddings and topic embeddings
     if args.model in ['ETM', 'ECRTM', 'XTM', 'XTMv2', 'YTM', 'XTMv3']:
         trainer.save_embeddings(current_run_dir)
         miscellaneous.tsne_viz(model.word_embeddings.detach().cpu().numpy(),
-                            model.topic_embeddings.detach().cpu().numpy(),
-                            os.path.join(current_run_dir, 'tsne.png'))
+                               model.topic_embeddings.detach().cpu().numpy(),
+                               os.path.join(current_run_dir, 'tsne.png'))
+
+    if args.model in ['XTM', 'XTMv2', 'XTMv3']:
+        miscellaneous.eval_viz_group(args.num_groups, args.num_topics // args.num_groups,
+                                     model.topic_embeddings.detach().cpu().numpy(), current_run_dir, logger)
 
     # model evaluation
     # TD
@@ -157,23 +159,27 @@ if __name__ == "__main__":
     # print(f"TD: {TD:.5f}")
     # wandb.log({"TD": TD})
     # logger.info(f"TD: {TD:.5f}")
-    
-    TD_10 = topmost.evaluations.compute_topic_diversity(top_words_10, _type="TD")
+
+    TD_10 = topmost.evaluations.compute_topic_diversity(
+        top_words_10, _type="TD")
     print(f"TD_10: {TD_10:.5f}")
     wandb.log({"TD_10": TD_10})
     logger.info(f"TD_10: {TD_10:.5f}")
-    
-    TD_15 = topmost.evaluations.compute_topic_diversity(top_words_15, _type="TD")
+
+    TD_15 = topmost.evaluations.compute_topic_diversity(
+        top_words_15, _type="TD")
     print(f"TD_15: {TD_15:.5f}")
     wandb.log({"TD_15": TD_15})
     logger.info(f"TD_15: {TD_15:.5f}")
-    
-    TD_20 = topmost.evaluations.compute_topic_diversity(top_words_20, _type="TD")
+
+    TD_20 = topmost.evaluations.compute_topic_diversity(
+        top_words_20, _type="TD")
     print(f"TD_20: {TD_20:.5f}")
     wandb.log({"TD_20": TD_20})
     logger.info(f"TD_20: {TD_20:.5f}")
-    
-    TD_25 = topmost.evaluations.compute_topic_diversity(top_words_25, _type="TD")
+
+    TD_25 = topmost.evaluations.compute_topic_diversity(
+        top_words_25, _type="TD")
     print(f"TD_25: {TD_25:.5f}")
     wandb.log({"TD_25": TD_25})
     logger.info(f"TD_25: {TD_25:.5f}")
@@ -188,6 +194,17 @@ if __name__ == "__main__":
         wandb.log({"Purity": clustering_results['Purity']})
         logger.info(f"NMI: {clustering_results['NMI']}")
         logger.info(f"Purity: {clustering_results['Purity']}")
+    
+    # evaluate classification
+    if read_labels:
+        classification_results = topmost.evaluations.evaluate_classification(
+            test_theta, dataset.test_labels)
+        print(f"Accuracy: ", classification_results['acc'])
+        wandb.log({"Accuracy": classification_results['acc']})
+        logger.info(f"Accuracy: {classification_results['acc']}")
+        print(f"Macro-f1", classification_results['macro-F1'])
+        wandb.log({"Macro-f1": classification_results['macro-F1']})
+        logger.info(f"Macro-f1: {classification_results['macro-F1']}")
 
     # TC
     TC_10_list, TC_10 = topmost.evaluations.topic_coherence.C_V_on_wikipedia(
@@ -196,14 +213,14 @@ if __name__ == "__main__":
     wandb.log({"TC_10": TC_10})
     logger.info(f"TC_10: {TC_10:.5f}")
     logger.info(f'TC_10 list: {TC_10_list}')
-    
+
     TC_15_list, TC_15 = topmost.evaluations.topic_coherence.C_V_on_wikipedia(
         os.path.join(current_run_dir, 'top_words_15.txt'))
     print(f"TC_15: {TC_15:.5f}")
     wandb.log({"TC_15": TC_15})
     logger.info(f"TC_15: {TC_15:.5f}")
     logger.info(f'TC_15 list: {TC_15_list}')
-    
+
     # too time consuming
     # TC_20_list, TC_20 = topmost.evaluations.topic_coherence.C_V_on_wikipedia(
     #     os.path.join(current_run_dir, 'top_words_20.txt'))
@@ -211,14 +228,13 @@ if __name__ == "__main__":
     # wandb.log({"TC_20": TC_20})
     # logger.info(f"TC_20: {TC_20:.5f}")
     # logger.info(f'TC_20 list: {TC_20_list}')
-    
+
     # TC_25_list, TC_25 = topmost.evaluations.topic_coherence.C_V_on_wikipedia(
     #     os.path.join(current_run_dir, 'top_words_25.txt'))
     # print(f"TC_25: {TC_25:.5f}")
     # wandb.log({"TC_25": TC_25})
     # logger.info(f"TC_25: {TC_25:.5f}")
     # logger.info(f'TC_25 list: {TC_25_list}')
-
 
     # # NPMI
     # NPMI_test_10 = topmost.evaluations.compute_topic_coherence(
@@ -227,11 +243,11 @@ if __name__ == "__main__":
     # wandb.log({"NPMI_test_10": NPMI_test_10})
     # logger.info(f"NPMI_test_10: {NPMI_test_10:.5f}")
 
-        # NPMI_test_15 = topmost.evaluations.compute_topic_coherence(
-        #     dataset.test_texts, dataset.vocab, top_words_15, cv_type='c_npmi')
-        # print(f"NPMI_test_15: {NPMI_test_15:.5f}")
-        # wandb.log({"NPMI_test_15": NPMI_test_15})
-        # logger.info(f"NPMI_test_15: {NPMI_test_15:.5f}")
+    # NPMI_test_15 = topmost.evaluations.compute_topic_coherence(
+    #     dataset.test_texts, dataset.vocab, top_words_15, cv_type='c_npmi')
+    # print(f"NPMI_test_15: {NPMI_test_15:.5f}")
+    # wandb.log({"NPMI_test_15": NPMI_test_15})
+    # logger.info(f"NPMI_test_15: {NPMI_test_15:.5f}")
 
     # NPMI_test_20 = topmost.evaluations.compute_topic_coherence(
     #     dataset.test_texts, dataset.vocab, top_words_20, cv_type='c_npmi')
