@@ -79,8 +79,8 @@ def eval_viz_group(n_groups, n_topics_per_group, topic_embeddings, dir, logger):
                 tsne_viz(topic_embeddings[emb_list_i], topic_embeddings[emb_list_j],
                          os.path.join(dir, 'pairwise_group_tsne', f'{i}_{j}.png'), viz_group=True)
 
+    print(group_distance[:5, :5])
     np.fill_diagonal(group_distance, np.inf)
-    argmin_group_distance = np.argmin(group_distance)
     min_index = np.unravel_index(
         np.argmin(group_distance), group_distance.shape)
     print("argmin_group_distance: ", min_index)
@@ -89,5 +89,3 @@ def eval_viz_group(n_groups, n_topics_per_group, topic_embeddings, dir, logger):
     logger.info(f"argmin_group_distance: {min_index}")
     logger.info(
         f"min_group_distance: {group_distance.min()} {group_distance[min_index]}")
-
-    print(group_distance[:5, :5])

@@ -27,7 +27,7 @@ if __name__ == "__main__":
 
     logger = log.setup_logger(
         'main', os.path.join(current_run_dir, 'main.log'))
-    wandb.init(project='xtmv3', config=args)
+    wandb.init(project='240414_xtmv3', config=args)
     wandb.log({'time_stamp': current_time})
 
     if args.dataset in ['20NG', 'IMDB', 'Rakuten_Amazon', 'NYT', 'ECNews',
@@ -194,11 +194,11 @@ if __name__ == "__main__":
         wandb.log({"Purity": clustering_results['Purity']})
         logger.info(f"NMI: {clustering_results['NMI']}")
         logger.info(f"Purity: {clustering_results['Purity']}")
-    
+
     # evaluate classification
     if read_labels:
         classification_results = topmost.evaluations.evaluate_classification(
-            test_theta, dataset.test_labels)
+            train_theta, test_theta, dataset.train_labels, dataset.test_labels)
         print(f"Accuracy: ", classification_results['acc'])
         wandb.log({"Accuracy": classification_results['acc']})
         logger.info(f"Accuracy: {classification_results['acc']}")
