@@ -27,7 +27,7 @@ if __name__ == "__main__":
 
     logger = log.setup_logger(
         'main', os.path.join(current_run_dir, 'main.log'))
-    wandb.init(project='240414_xtmv3', config=args)
+    wandb.init(project='240422_xtmv4', config=args)
     wandb.log({'time_stamp': current_time})
 
     if args.dataset in ['20NG', 'IMDB', 'Rakuten_Amazon', 'NYT', 'ECNews',
@@ -81,6 +81,19 @@ if __name__ == "__main__":
                                                       gating_func=args.gating_func,
                                                       weight_global_expert=args.weight_global_expert,
                                                       weight_local_expert=args.weight_local_expert)
+    elif args.model == 'XTMv4':
+        model = topmost.models.MODEL_DICT[args.model](vocab_size=dataset.vocab_size,
+                                                      num_topics=args.num_topics,
+                                                      num_groups=args.num_groups,
+                                                      dropout=args.dropout,
+                                                      pretrained_WE=pretrainWE if args.use_pretrainWE else None,
+                                                      weight_loss_XGR=args.weight_XGR,
+                                                      weight_loss_ECR=args.weight_ECR,
+                                                      alpha_ECR=args.alpha_ECR,
+                                                      alpha_XGR=args.alpha_XGR,
+                                                      gating_func=args.gating_func,
+                                                      weight_global_expert=args.weight_global_expert,
+                                                      weight_local_expert=args.weight_local_expert)
     elif args.model == 'XTM':
         model = topmost.models.MODEL_DICT[args.model](vocab_size=dataset.vocab_size,
                                                       num_topics=args.num_topics,
@@ -109,6 +122,9 @@ if __name__ == "__main__":
         model.weight_loss_XGR = args.weight_XGR
         model.weight_loss_ECR = args.weight_ECR
     if args.model == 'XTMv3':
+        model.weight_loss_XGR = args.weight_XGR
+        model.weight_loss_ECR = args.weight_ECR
+    if args.model == 'XTMv4':
         model.weight_loss_XGR = args.weight_XGR
         model.weight_loss_ECR = args.weight_ECR
     if args.model == 'XTM':
@@ -149,7 +165,14 @@ if __name__ == "__main__":
                                model.topic_embeddings.detach().cpu().numpy(),
                                os.path.join(current_run_dir, 'tsne.png'))
 
-    if args.model in ['XTM', 'XTMv2', 'XTMv3']:
+    if args.model in ['XTMv4']:
+        trainer.save_embeddings(current_run_dir)
+        miscellaneous.tsne_group_viz(model.word_embeddings.detach().cpu().numpy(),
+                                     model.topic_embeddings.detach().cpu().numpy(),
+                                     model.group_embeddings.detach().cpu().numpy(),
+                                     os.path.join(current_run_dir, 'tsne.png'))
+
+    if args.model in ['XTM', 'XTMv2', 'XTMv3', 'XTMv4']:
         miscellaneous.eval_viz_group(args.num_groups, args.num_topics // args.num_groups,
                                      model.topic_embeddings.detach().cpu().numpy(), current_run_dir, logger)
 

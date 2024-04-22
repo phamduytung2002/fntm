@@ -148,6 +148,7 @@ class BasicTrainer:
             word_embeddings = self.model.word_embeddings.detach().cpu().numpy()
             np.save(os.path.join(dir_path, 'word_embeddings.npy'), word_embeddings)
             self.logger.info(f'word_embeddings size: {word_embeddings.shape}')
+
         if hasattr(self.model, 'topic_embeddings'):
             topic_embeddings = self.model.topic_embeddings.detach().cpu().numpy()
             np.save(os.path.join(dir_path, 'topic_embeddings.npy'),
@@ -157,4 +158,15 @@ class BasicTrainer:
 
             topic_dist = scipy.spatial.distance.cdist(topic_embeddings, topic_embeddings)
             np.save(os.path.join(dir_path, 'topic_dist.npy'), topic_dist)
+
+        if hasattr(self.model, 'group_embeddings'):
+            group_embeddings = self.model.group_embeddings.detach().cpu().numpy()
+            np.save(os.path.join(dir_path, 'group_embeddings.npy'),
+                    group_embeddings)
+            self.logger.info(
+                f'group_embeddings size: {group_embeddings.shape}')
+
+            group_dist = scipy.spatial.distance.cdist(group_embeddings, group_embeddings)
+            np.save(os.path.join(dir_path, 'group_dist.npy'), group_dist)
+
         return word_embeddings, topic_embeddings

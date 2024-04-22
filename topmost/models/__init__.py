@@ -8,6 +8,7 @@ from .basic.ECRTM.ECRTM import ECRTM
 from .basic.XTM.XTM import XTM
 from .basic.XTMv2.XTMv2 import XTMv2
 from .basic.XTMv3.XTMv3 import XTMv3
+from .basic.XTMv4.XTMv4 import XTMv4
 from .basic.YTM.YTM import YTM
 
 from .crosslingual.NMTM import NMTM
@@ -36,5 +37,6 @@ MODEL_DICT = {
     "XTM": XTM,
     "XTMv2": XTMv2,
     "XTMv3": XTMv3,
+    "XTMv4": XTMv4,
     "YTM": YTM
 }

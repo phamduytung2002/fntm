@@ -42,6 +42,26 @@ def tsne_viz(word_embedding, topic_embedding, save_path, viz_group=False):
     plt.savefig(save_path)
 
 
+def tsne_group_viz(word_embedding, topic_embedding, group_embeddings, save_path, viz_group=False):
+    tsne = TSNE(n_components=2, random_state=0,
+                perplexity=5 if viz_group else 30)
+    word_c = np.ones(word_embedding.shape[0])
+    topic_c = np.zeros(topic_embedding.shape[0])
+    group_c = np.ones(group_embeddings.shape[0]) * 2
+    wt_c = np.concatenate([word_c, topic_c, group_c], axis=0)
+    word_and_topic_emb = np.concatenate(
+        [word_embedding, topic_embedding, group_embeddings], axis=0)
+    wt_tsne = tsne.fit_transform(word_and_topic_emb)
+
+    plt.figure(figsize=(10, 5))
+    plt.scatter(wt_tsne[:, 0], wt_tsne[:, 1], c=wt_c)
+    for i, _ in enumerate(topic_c):
+        plt.annotate(
+            str(i), (wt_tsne[word_c.shape[0] + i, 0], wt_tsne[word_c.shape[0] + i, 1]))
+    plt.title('Word and Topic Embeddings')
+    plt.savefig(save_path)
+
+
 def eval_viz_group(n_groups, n_topics_per_group, topic_embeddings, dir, logger):
     group_distance = np.zeros((n_groups, n_groups))
     # group_disance[i, j] = average distance between topics in group i and topics in group j
