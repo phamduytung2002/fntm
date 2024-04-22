@@ -42,7 +42,7 @@ def tsne_viz(word_embedding, topic_embedding, save_path, viz_group=False):
     plt.savefig(save_path)
 
 
-def tsne_group_viz(word_embedding, topic_embedding, group_embeddings, save_path, viz_group=False):
+def tsne_group_viz(word_embedding, topic_embedding, group_embeddings, save_path_1, save_path_2, viz_group=False):
     tsne = TSNE(n_components=2, random_state=0,
                 perplexity=5 if viz_group else 30)
     word_c = np.ones(word_embedding.shape[0])
@@ -59,7 +59,24 @@ def tsne_group_viz(word_embedding, topic_embedding, group_embeddings, save_path,
         plt.annotate(
             str(i), (wt_tsne[word_c.shape[0] + i, 0], wt_tsne[word_c.shape[0] + i, 1]))
     plt.title('Word and Topic Embeddings')
-    plt.savefig(save_path)
+    plt.savefig(save_path_1)
+    
+    tsne = TSNE(n_components=2, random_state=0,
+                perplexity=5 if viz_group else 30)
+    topic_c = np.zeros(topic_embedding.shape[0])
+    group_c = np.ones(group_embeddings.shape[0])
+    wt_c = np.concatenate([topic_c, group_c], axis=0)
+    topic_and_group_emb = np.concatenate(
+        [topic_embedding, group_embeddings], axis=0)
+    wt_tsne = tsne.fit_transform(topic_and_group_emb)
+
+    plt.figure(figsize=(10, 5))
+    plt.scatter(wt_tsne[:, 0], wt_tsne[:, 1], c=wt_c)
+    for i, _ in enumerate(topic_c):
+        plt.annotate(
+            str(i), (wt_tsne[i, 0], wt_tsne[i, 1]))
+    plt.title('Topic and Group Embeddings')
+    plt.savefig(save_path_2)
 
 
 def eval_viz_group(n_groups, n_topics_per_group, topic_embeddings, dir, logger):

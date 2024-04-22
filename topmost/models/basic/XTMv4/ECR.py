@@ -16,6 +16,8 @@ class ECR(nn.Module):
         self.weight_loss_ECR = weight_loss_ECR
         self.stopThr = stopThr
         self.epsilon = 1e-16
+        
+        self.transp = None
 
     def forward(self, M):
         # M: KxV
@@ -41,6 +43,8 @@ class ECR(nn.Module):
                 err = torch.norm(torch.sum(torch.abs(bb - b), dim=0), p=float('inf'))
 
         transp = u * (K * v.T)
+        
+        self.transp = transp
 
         loss_ECR = torch.sum(transp * M)
         loss_ECR *= self.weight_loss_ECR

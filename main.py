@@ -27,7 +27,7 @@ if __name__ == "__main__":
 
     logger = log.setup_logger(
         'main', os.path.join(current_run_dir, 'main.log'))
-    wandb.init(project='240422_xtmv4', config=args)
+    wandb.init(project='240422night_xtmv4', config=args)
     wandb.log({'time_stamp': current_time})
 
     if args.dataset in ['20NG', 'IMDB', 'Rakuten_Amazon', 'NYT', 'ECNews',
@@ -158,6 +158,16 @@ if __name__ == "__main__":
     top_words_25 = trainer.save_top_words(
         dataset.vocab, 25, current_run_dir)
 
+    # argmax of train and test theta
+    train_theta_argmax = train_theta.argmax(axis=1)
+    unique_elements, counts = np.unique(train_theta_argmax, return_counts=True)
+    print(f'train theta argmax: {unique_elements, counts}')
+    logger.info(f'train theta argmax: {unique_elements, counts}')
+    test_theta_argmax = test_theta.argmax(axis=1)
+    unique_elements, counts = np.unique(test_theta_argmax, return_counts=True)
+    print(f'test theta argmax: {unique_elements, counts}')
+    logger.info(f'test theta argmax: {unique_elements, counts}')
+
     # save word embeddings and topic embeddings
     if args.model in ['ETM', 'ECRTM', 'XTM', 'XTMv2', 'YTM', 'XTMv3']:
         trainer.save_embeddings(current_run_dir)
@@ -166,11 +176,17 @@ if __name__ == "__main__":
                                os.path.join(current_run_dir, 'tsne.png'))
 
     if args.model in ['XTMv4']:
+        # try:
         trainer.save_embeddings(current_run_dir)
         miscellaneous.tsne_group_viz(model.word_embeddings.detach().cpu().numpy(),
                                      model.topic_embeddings.detach().cpu().numpy(),
                                      model.group_embeddings.detach().cpu().numpy(),
-                                     os.path.join(current_run_dir, 'tsne.png'))
+                                     os.path.join(current_run_dir,
+                                                  'tsne_wt.png'),
+                                     os.path.join(current_run_dir, 'tsne_tg.png'))
+        # except:
+        #     print("VISUALIZE ERROR!!!")
+        #     logger.info("VISUALIZE ERROR!!!")
 
     if args.model in ['XTM', 'XTMv2', 'XTMv3', 'XTMv4']:
         miscellaneous.eval_viz_group(args.num_groups, args.num_topics // args.num_groups,

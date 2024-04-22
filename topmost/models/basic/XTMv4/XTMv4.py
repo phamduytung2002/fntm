@@ -2,6 +2,7 @@ import numpy as np
 import torch
 from torch import nn
 import torch.nn.functional as F
+import logging
 from .ECR import ECR
 from .XGR import XGR
 
@@ -19,38 +20,6 @@ class Distgating(nn.Module):
         return -cdist
 
 
-class SetToNegInf(nn.Module):
-    def __init__(self, eps):
-        super(SetToNegInf, self).__init__()
-        self.eps = eps
-
-    def forward(self, input_tensor):
-        # Create a mask tensor where elements less than eps are marked as True
-        mask = torch.logical_or((input_tensor < self.eps),
-                                (input_tensor == torch.inf))
-
-        # Use torch.where to conditionally set elements to -inf
-        output_tensor = torch.where(mask, torch.tensor(float(
-            '-inf'), dtype=input_tensor.dtype, device=input_tensor.device), input_tensor)
-
-        # Save the mask for backward pass
-        self.mask = mask
-
-        return output_tensor
-
-    def backward(self, grad_output):
-        # Create a zero tensor with the same shape as the input tensor
-        grad_input = torch.zeros_like(grad_output)
-
-        # Set the gradient only for elements where mask is False (not set to -inf)
-        grad_input[self.mask == False] = grad_output[self.mask == False]
-        grad_input[torch.isnan(grad_input)] = 0
-
-        print('set neg inf grad: ', grad_input)
-
-        return grad_input
-
-
 def masked_softmax(x, mask, verbose=False):
     x_mask = x * mask
     max_x_mask = torch.max(x_mask, dim=-1, keepdim=True).values
@@ -64,12 +33,6 @@ def masked_softmax(x, mask, verbose=False):
         print(f'sum_exp_x_mask: {sum_exp_x_mask[verbose]}')
     return exp_x_mask / sum_exp_x_mask
 
-    x_exp = torch.exp(x)
-    x_exp_mask = x_exp * mask
-    max_x_exp_mask = torch.max(x_exp_mask, dim=-1, keepdim=True)
-    sum_masked_x_exp = torch.sum(x_exp*mask, dim=-1, keepdim=True)
-    return (x_exp_mask / sum_masked_x_exp) * mask.float()
-
 
 class XTMv4(nn.Module):
     def __init__(self, vocab_size, num_topics=50, num_groups=10, en_units=200,
@@ -82,6 +45,10 @@ class XTMv4(nn.Module):
         self.num_topics = num_topics
         self.num_groups = num_groups
         self.beta_temp = beta_temp
+        assert (num_topics % num_groups == 0,
+                'num_topics should be divisible by num_groups')
+        self.num_topics_per_group = num_topics // num_groups
+        self.n_global_group = 0
 
         self.a = 1 * np.ones((1, num_topics)).astype(np.float32)
         self.mu2 = nn.Parameter(torch.as_tensor(
@@ -97,28 +64,24 @@ class XTMv4(nn.Module):
 
         if gating_func == 'dot':
             self.gating_alpha = nn.Sequential(
-                nn.BatchNorm1d(vocab_size),
-                nn.Linear(vocab_size, num_groups, bias=False))
+                # nn.BatchNorm1d(vocab_size),
+                nn.Linear(vocab_size, self.num_groups - self.n_global_group, bias=False))
         elif gating_func == 'dot_bias':
             self.gating_alpha = nn.Sequential(
                 # nn.BatchNorm1d(vocab_size),
-                nn.Linear(vocab_size, num_groups, bias=True))
+                nn.Linear(vocab_size, self.num_groups - self.n_global_group, bias=True))
         elif gating_func == 'L1':
             print('dont use this')
             self.gating_alpha = nn.Sequential(
-                Distgating(vocab_size, num_groups, 1))
+                Distgating(vocab_size, self.num_groups - self.n_global_group, 1))
         elif gating_func == 'L2':
             self.gating_alpha = nn.Sequential(
-                Distgating(vocab_size, num_groups, 2))
+                Distgating(vocab_size, self.num_groups - self.n_global_group, 2))
         else:
             raise NotImplementedError
 
         self.weight_global_expert = weight_global_expert
         self.weight_local_expert = weight_local_expert
-
-        # self.gating_alpha = nn.Sequential(
-        #     nn.Linear(vocab_size, num_groups, bias=True),)
-        # self.set_neg_inf = SetToNegInf(1e-8)
 
         self.fc11 = nn.Linear(vocab_size, en_units)
         self.fc12 = nn.Linear(en_units, en_units)
@@ -152,10 +115,6 @@ class XTMv4(nn.Module):
         nn.init.trunc_normal_(self.group_embeddings, std=0.1)
         self.group_embeddings = nn.Parameter(
             F.normalize(self.group_embeddings))
-
-        assert (num_topics % num_groups == 0,
-                'num_topics should be divisible by num_groups')
-        self.num_topics_per_group = num_topics // num_groups
 
         self.ECR = ECR(weight_loss_ECR, alpha_ECR, sinkhorn_max_iter)
         self.XGR = ECR(weight_loss_XGR, alpha_XGR, sinkhorn_max_iter)
@@ -207,8 +166,6 @@ class XTMv4(nn.Module):
 
         p = self.gating_alpha(input)
         p_topk_indices = torch.topk(p, 2).indices
-        contains_zero = (p_topk_indices == 0).any(dim=1)
-        p_topk_indices[~contains_zero, 1] = 0
 
         rows = torch.arange(p.size(0)).unsqueeze(1)
         p_topk_mask = torch.zeros_like(p, dtype=torch.bool)
@@ -223,11 +180,19 @@ class XTMv4(nn.Module):
 
         p_softmax_mask = masked_softmax(p_all_topics, p_all_topics_mask)
 
-        p_softmax = F.softmax(p[:, 1:])
-        global_loss = self.global_expert_neg_entropy_loss(p_softmax_mask)
+        p_softmax = F.softmax(p)
+        global_loss = self.global_expert_neg_entropy_loss(p_softmax)
         local_loss = self.local_expert_entropy_loss(p_softmax)
 
-        theta = masked_softmax(p_softmax_mask * z, p_all_topics_mask)
+        p_softmax_mask_with_global = torch.concat(
+            [torch.ones(p.size(0), self.n_global_group * self.num_topics_per_group)
+             .to(p.device), p_softmax_mask], dim=1) / (self.n_global_group + 1)
+        p_all_topics_mask_with_global = torch.concat(
+            [torch.ones(p.size(0), self.n_global_group * self.num_topics_per_group)
+             .to(p.device), p_all_topics_mask], dim=1)
+
+        theta = masked_softmax(
+            p_softmax_mask_with_global * z, p_all_topics_mask_with_global)
 
         # nan_indices = torch.where(torch.isnan(theta))
         # print(nan_indices[0])
@@ -237,9 +202,11 @@ class XTMv4(nn.Module):
         #     y = nan_indices[1][0]
         #     print(nan_indices)
         #     print(p_all_topics_mask[x, :])
+        #     print(p[x, :])
         #     print(p_all_topics[x, :])
         #     print(z[x, :])
-        #     t = masked_softmax(p_all_topics * z, p_all_topics_mask, verbose=x)
+        #     t = masked_softmax(p_softmax_mask_with_global * z,
+        #                        p_all_topics_mask_with_global, verbose=x)
         #     print(t[x, :])
         #     print(theta[x, :])
         #     exit(0)
@@ -286,9 +253,15 @@ class XTMv4(nn.Module):
 
     def get_loss_XGR(self):
         cost = self.pairwise_euclidean_distance(
-            self.topic_embeddings, self.group_embeddings)
+            self.group_embeddings, self.topic_embeddings)
+        logger = logging.getLogger('main')
+        # logger.info(f'group-topic shape: {cost.shape}')
+        # logger.info(f'group-topic: {cost[:3, :7]}')
         loss_XGR = self.XGR(cost)
         return loss_XGR
+
+    def get_OT_plan_group_topic(self):
+        return self.XGR.transp
 
     def pairwise_euclidean_distance(self, x, y):
         cost = torch.sum(x ** 2, axis=1, keepdim=True) + \
