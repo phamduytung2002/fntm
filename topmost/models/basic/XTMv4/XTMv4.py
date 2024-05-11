@@ -1,10 +1,13 @@
 import numpy as np
 import torch
+import copy
 from torch import nn
 import torch.nn.functional as F
 import logging
 from .ECR import ECR
 from .XGR import XGR
+
+cnt = 0
 
 
 class Distgating(nn.Module):
@@ -20,18 +23,46 @@ class Distgating(nn.Module):
         return -cdist
 
 
-def masked_softmax(x, mask, verbose=False):
-    x_mask = x * mask
-    max_x_mask = torch.max(x_mask, dim=-1, keepdim=True).values
-    x_mask = x_mask - max_x_mask
-    exp_x_mask = torch.exp(x_mask) * mask
-    sum_exp_x_mask = torch.sum(exp_x_mask, dim=-1, keepdim=True)
-    if verbose:
-        print(f'max_x_mask: {max_x_mask[verbose]}')
-        print(f'x_mask: {x_mask[verbose]}')
-        print(f'exp_x_mask: {exp_x_mask[verbose]}')
-        print(f'sum_exp_x_mask: {sum_exp_x_mask[verbose]}')
-    return exp_x_mask / sum_exp_x_mask
+def masked_softmax(vector: torch.Tensor,
+                   mask: torch.Tensor,
+                   dim: int = -1,
+                   memory_efficient: bool = False,
+                   mask_fill_value: float = -1e32) -> torch.Tensor:
+    """
+    ``torch.nn.functional.softmax(vector)`` does not work if some elements of ``vector`` should be
+    masked.  This performs a softmax on just the non-masked portions of ``vector``.  Passing
+    ``None`` in for the mask is also acceptable; you'll just get a regular softmax.
+
+    ``vector`` can have an arbitrary number of dimensions; the only requirement is that ``mask`` is
+    broadcastable to ``vector's`` shape.  If ``mask`` has fewer dimensions than ``vector``, we will
+    unsqueeze on dimension 1 until they match.  If you need a different unsqueezing of your mask,
+    do it yourself before passing the mask into this function.
+
+    If ``memory_efficient`` is set to true, we will simply use a very large negative number for those
+    masked positions so that the probabilities of those positions would be approximately 0.
+    This is not accurate in math, but works for most cases and consumes less memory.
+
+    In the case that the input vector is completely masked and ``memory_efficient`` is false, this function
+    returns an array of ``0.0``. This behavior may cause ``NaN`` if this is used as the last layer of
+    a model that uses categorical cross-entropy loss. Instead, if ``memory_efficient`` is true, this function
+    will treat every element as equal, and do softmax over equal numbers.
+    """
+    if mask is None:
+        result = torch.nn.functional.softmax(vector, dim=dim)
+    else:
+        mask = mask.float()
+        while mask.dim() < vector.dim():
+            mask = mask.unsqueeze(1)
+        if not memory_efficient:
+            # To limit numerical errors from large vector elements outside the mask, we zero these out.
+            result = torch.nn.functional.softmax(vector * mask, dim=dim)
+            result = result * mask
+            result = result / (result.sum(dim=dim, keepdim=True) + 1e-13)
+        else:
+            masked_vector = vector.masked_fill(
+                (1 - mask).byte(), mask_fill_value)
+            result = torch.nn.functional.softmax(masked_vector, dim=dim)
+    return result
 
 
 class XTMv4(nn.Module):
@@ -39,7 +70,8 @@ class XTMv4(nn.Module):
                  dropout=0., pretrained_WE=None, embed_size=200, beta_temp=0.2,
                  weight_loss_XGR=250.0, weight_loss_ECR=250.0,
                  alpha_ECR=20.0, alpha_XGR=4.0, sinkhorn_max_iter=1000,
-                 gating_func='dot', weight_global_expert=250., weight_local_expert=250.):
+                 gating_func='dot', weight_global_expert=250., weight_local_expert=250.,
+                 k=1):
         super().__init__()
 
         self.num_topics = num_topics
@@ -83,11 +115,32 @@ class XTMv4(nn.Module):
         self.weight_global_expert = weight_global_expert
         self.weight_local_expert = weight_local_expert
 
-        self.fc11 = nn.Linear(vocab_size, en_units)
-        self.fc12 = nn.Linear(en_units, en_units)
-        self.fc21 = nn.Linear(en_units, num_topics)
-        self.fc22 = nn.Linear(en_units, num_topics)
-        self.fc1_dropout = nn.Dropout(dropout)
+        self.ffn_enc_list = nn.ModuleList()
+        for _ in range(self.num_groups - self.n_global_group):
+            self.ffn_enc_list.append(nn.Sequential(
+                nn.Linear(vocab_size, en_units),
+                nn.Softplus(),
+                nn.Linear(en_units, en_units),
+                nn.Softplus(),
+                nn.Dropout(dropout)
+            ))
+        self.ffn_mu_list = nn.ModuleList()
+        self.ffn_logvar_list = nn.ModuleList()
+        for _ in range(self.num_groups - self.n_global_group):
+            self.ffn_mu_list.append(nn.Sequential(
+                nn.Linear(en_units, self.num_topics_per_group),
+                nn.BatchNorm1d(self.num_topics_per_group)
+            ))
+            self.ffn_logvar_list.append(nn.Sequential(
+                nn.Linear(en_units, self.num_topics_per_group),
+                nn.BatchNorm1d(self.num_topics_per_group)
+            ))
+            
+        # self.fc11 = nn.Linear(vocab_size, en_units)
+        # self.fc12 = nn.Linear(en_units, en_units)
+        # self.fc21 = nn.Linear(en_units, num_topics)
+        # self.fc22 = nn.Linear(en_units, num_topics)
+        # self.fc1_dropout = nn.Dropout(dropout)
         self.theta_dropout = nn.Dropout(dropout)
 
         self.mean_bn = nn.BatchNorm1d(num_topics)
@@ -96,6 +149,8 @@ class XTMv4(nn.Module):
         self.logvar_bn.weight.requires_grad = False
         self.decoder_bn = nn.BatchNorm1d(vocab_size, affine=True)
         self.decoder_bn.weight.requires_grad = False
+
+        self.k = k
 
         if pretrained_WE is not None:
             self.word_embeddings = torch.from_numpy(pretrained_WE).float()
@@ -151,68 +206,44 @@ class XTMv4(nn.Module):
 
     def global_expert_neg_entropy_loss(self, p):
         sum_p = torch.mean(p, dim=0)
-        return torch.mean(sum_p * torch.log(sum_p + 1e-8)) * self.weight_global_expert
+        return torch.mean(sum_p * torch.log(sum_p + 1e-6)) * self.weight_global_expert
 
     def local_expert_entropy_loss(self, p):
-        return -torch.sum(p * torch.log(p + 1e-8), axis=1).mean() * self.weight_local_expert
+        return -torch.sum(p * torch.log(p + 1e-6), axis=1).mean() * self.weight_local_expert
 
     def encode(self, input, eps=1e-8):
-        e1 = F.softplus(self.fc11(input))
-        e1 = F.softplus(self.fc12(e1))
-        e1 = self.fc1_dropout(e1)
-        mu = self.mean_bn(self.fc21(e1))
-        logvar = self.logvar_bn(self.fc22(e1))
-        z = self.reparameterize(mu, logvar)
+        list_z = []
+        list_mu = []
+        list_logvar = []
+        p = F.softmax(self.gating_alpha(input), dim=1)
+        for i in range(self.num_groups - self.n_global_group):
+            e1 = self.ffn_enc_list[i](input)
+            mu = self.ffn_mu_list[i](e1)
+            logvar = self.ffn_logvar_list[i](e1)
+            list_mu.append(mu)
+            list_logvar.append(logvar)
+            z = self.reparameterize(mu, logvar)
+            list_z.append(z*p[:, i].unsqueeze(1))
+        mu = torch.cat(list_mu, dim=1)
+        logvar = torch.cat(list_logvar, dim=1)
+        z = torch.cat(list_z, dim=1)
+        
+        print(mu.shape, logvar.shape, z.shape)
+    
 
-        p = self.gating_alpha(input)
-        p_topk_indices = torch.topk(p, 2).indices
+        z_softmax = F.softmax(z, dim=1)
 
-        rows = torch.arange(p.size(0)).unsqueeze(1)
-        p_topk_mask = torch.zeros_like(p, dtype=torch.bool)
-        p_topk_mask[rows, p_topk_indices] = True
+        theta = z_softmax
+        theta /= theta.sum(dim=1, keepdim=True)
+        global_loss = 0.
+        local_loss = 0.
 
-        p_all_topics = p.unsqueeze(dim=-1) \
-                        .repeat(*[[1]*p.ndim + [self.num_topics_per_group]]) \
-                        .flatten(start_dim=-2)
-        p_all_topics_mask = p_topk_mask.unsqueeze(dim=-1) \
-            .repeat(*[[1]*p_topk_mask.ndim + [self.num_topics_per_group]]) \
-            .flatten(start_dim=-2)
+        print(f'global_loss: {global_loss}')
+        print(f'local_loss: {local_loss}')
+        print('**************')
 
-        p_softmax_mask = masked_softmax(p_all_topics, p_all_topics_mask)
 
-        p_softmax = F.softmax(p)
-        global_loss = self.global_expert_neg_entropy_loss(p_softmax)
-        local_loss = self.local_expert_entropy_loss(p_softmax)
-
-        p_softmax_mask_with_global = torch.concat(
-            [torch.ones(p.size(0), self.n_global_group * self.num_topics_per_group)
-             .to(p.device), p_softmax_mask], dim=1) / (self.n_global_group + 1)
-        p_all_topics_mask_with_global = torch.concat(
-            [torch.ones(p.size(0), self.n_global_group * self.num_topics_per_group)
-             .to(p.device), p_all_topics_mask], dim=1)
-
-        theta = masked_softmax(
-            p_softmax_mask_with_global * z, p_all_topics_mask_with_global)
-
-        # nan_indices = torch.where(torch.isnan(theta))
-        # print(nan_indices[0])
-        # print(len(nan_indices[0]))
-        # if len(nan_indices[0]) > 0:
-        #     x = nan_indices[0][0]
-        #     y = nan_indices[1][0]
-        #     print(nan_indices)
-        #     print(p_all_topics_mask[x, :])
-        #     print(p[x, :])
-        #     print(p_all_topics[x, :])
-        #     print(z[x, :])
-        #     t = masked_softmax(p_softmax_mask_with_global * z,
-        #                        p_all_topics_mask_with_global, verbose=x)
-        #     print(t[x, :])
-        #     print(theta[x, :])
-        #     exit(0)
-
-        loss_KL_gauss = self.compute_loss_KL_gauss(
-            mu, logvar)
+        loss_KL_gauss = self.compute_loss_KL_gauss(mu, logvar)
         loss_KL_ber = 0.
 
         return theta, loss_KL_gauss, loss_KL_ber, global_loss, local_loss
@@ -277,11 +308,11 @@ class XTMv4(nn.Module):
         recon = F.softmax(self.decoder_bn(torch.matmul(theta, beta)), dim=-1)
         recon_loss = -(input * recon.log()).sum(axis=1).mean()
 
-        loss_TM = recon_loss + loss_KL_gauss + loss_KL_ber + global_loss + local_loss
+        loss_TM = recon_loss + loss_KL_gauss + loss_KL_ber
 
         loss_ECR = self.get_loss_ECR()
         loss_XGR = self.get_loss_XGR()
-        loss = loss_TM + loss_ECR + loss_XGR
+        loss = loss_TM + loss_ECR + loss_XGR + global_loss + local_loss
 
         rst_dict = {
             'loss': loss,

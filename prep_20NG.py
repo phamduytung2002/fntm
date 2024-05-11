@@ -3,7 +3,7 @@ from topmost.data import download_dataset
 from topmost.preprocessing import Preprocessing
 
 # download raw data
-download_20ng.download_save(output_dir='./datasets/20NG')
+# download_20ng.download_save(output_dir='./datasets/20NG')
 
 preprocessing = Preprocessing(vocab_size=5000, stopwords='.\data\stopwords\snowball_stopwords.txt')
 

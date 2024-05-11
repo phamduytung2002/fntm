@@ -10,6 +10,7 @@ from .basic.XTMv2.XTMv2 import XTMv2
 from .basic.XTMv3.XTMv3 import XTMv3
 from .basic.XTMv4.XTMv4 import XTMv4
 from .basic.YTM.YTM import YTM
+from .basic.ZTM.ZTM import ZTM
 
 from .crosslingual.NMTM import NMTM
 from .crosslingual.InfoCTM.InfoCTM import InfoCTM
@@ -38,5 +39,6 @@ MODEL_DICT = {
     "XTMv2": XTMv2,
     "XTMv3": XTMv3,
     "XTMv4": XTMv4,
-    "YTM": YTM
+    "YTM": YTM,
+    "ZTM": ZTM,
 }

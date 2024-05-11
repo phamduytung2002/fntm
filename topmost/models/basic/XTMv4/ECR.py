@@ -1,5 +1,6 @@
 import torch
 from torch import nn
+import wandb
 
 
 class ECR(nn.Module):
@@ -48,5 +49,10 @@ class ECR(nn.Module):
 
         loss_ECR = torch.sum(transp * M)
         loss_ECR *= self.weight_loss_ECR
+        
+        if M.shape[0] == 10:
+            wandb.log({'n_sinkhorn_loop_XGR': cpt})
+        else:
+            wandb.log({'n_sinkhorn_loop_ECR': cpt})
 
         return loss_ECR

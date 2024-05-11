@@ -51,12 +51,17 @@ class SetToNegInf(nn.Module):
         return grad_input
 
 
-def masked_softmax(x, mask):
+def masked_softmax(x, mask, verbose=False):
     x_mask = x * mask
     max_x_mask = torch.max(x_mask, dim=-1, keepdim=True).values
     x_mask = x_mask - max_x_mask
     exp_x_mask = torch.exp(x_mask) * mask
     sum_exp_x_mask = torch.sum(exp_x_mask, dim=-1, keepdim=True)
+    if verbose:
+        print(f'max_x_mask: {max_x_mask[verbose]}')
+        print(f'x_mask: {x_mask[verbose]}')
+        print(f'exp_x_mask: {exp_x_mask[verbose]}')
+        print(f'sum_exp_x_mask: {sum_exp_x_mask[verbose]}')
     return exp_x_mask / sum_exp_x_mask
 
     x_exp = torch.exp(x)
@@ -94,9 +99,11 @@ class XTMv3(nn.Module):
             self.gating_alpha = nn.Sequential(
                 nn.Linear(vocab_size, num_groups, bias=False))
         elif gating_func == 'dot_bias':
+            print('dont use this')
             self.gating_alpha = nn.Sequential(
                 nn.Linear(vocab_size, num_groups, bias=True))
         elif gating_func == 'L1':
+            print('dont use this')
             self.gating_alpha = nn.Sequential(
                 Distgating(vocab_size, num_groups, 1))
         elif gating_func == 'L2':
@@ -192,7 +199,10 @@ class XTMv3(nn.Module):
         z = self.reparameterize(mu, logvar)
 
         p = self.gating_alpha(input)
-        p_topk_indices = torch.topk(p, 3).indices
+        p_topk_indices = torch.topk(p, 2).indices
+        contains_zero = (p_topk_indices == 0).any(dim=1)
+        p_topk_indices[~contains_zero, 1] = 0
+
         rows = torch.arange(p.size(0)).unsqueeze(1)
         p_topk_mask = torch.zeros_like(p, dtype=torch.bool)
         p_topk_mask[rows, p_topk_indices] = True
@@ -203,13 +213,30 @@ class XTMv3(nn.Module):
         p_all_topics_mask = p_topk_mask.unsqueeze(dim=-1) \
             .repeat(*[[1]*p_topk_mask.ndim + [self.num_topics_per_group]]) \
             .flatten(start_dim=-2)
+        
+        p_softmax_mask = masked_softmax(p_all_topics, p_all_topics_mask)
 
-
-        p_softmax = F.softmax(p)
+        p_softmax = F.softmax(p[:, 1:])
         global_loss = self.global_expert_neg_entropy_loss(p_softmax)
         local_loss = self.local_expert_entropy_loss(p_softmax)
+        
 
-        theta = masked_softmax(p_all_topics * z, p_all_topics_mask)
+        theta = masked_softmax(p_softmax_mask * z, p_all_topics_mask)
+        
+        # nan_indices = torch.where(torch.isnan(theta))
+        # print(nan_indices[0])
+        # print(len(nan_indices[0]))
+        # if len(nan_indices[0]) > 0:
+        #     x = nan_indices[0][0]
+        #     y = nan_indices[1][0]
+        #     print(nan_indices)
+        #     print(p_all_topics_mask[x, :])
+        #     print(p_all_topics[x, :])
+        #     print(z[x, :])
+        #     t = masked_softmax(p_all_topics * z, p_all_topics_mask, verbose=x)
+        #     print(t[x, :])
+        #     print(theta[x, :])
+        #     exit(0)
 
         loss_KL_gauss = self.compute_loss_KL_gauss(
             mu, logvar)

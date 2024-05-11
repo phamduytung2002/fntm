@@ -186,7 +186,7 @@ class Preprocessing:
 
         vectorizer = CountVectorizer(vocabulary=vocab, tokenizer=lambda x: x.split())
         bow = vectorizer.fit_transform(parsed_texts)
-        bow = bow.toarray()
+        bow = bow.toarray().astype(np.int8)
         return parsed_texts, bow
 
     def preprocess_jsonlist(self, dataset_dir, label_name=None):
@@ -211,6 +211,8 @@ class Preprocessing:
 
             if label_name is not None:
                 test_labels.append(item[label_name])
+        
+        # print(len(raw_train_texts), len(train_labels), len(raw_test_texts), len(test_labels))
 
         rst = self.preprocess(raw_train_texts, train_labels, raw_test_texts, test_labels)
 
@@ -234,7 +236,7 @@ class Preprocessing:
 
     def preprocess(self, raw_train_texts, train_labels=None, raw_test_texts=None, test_labels=None):
         np.random.seed(self.seed)
-        bert_model = sentence_transformers.SentenceTransformer('all-mpnet-base-v2')
+        bert_model = sentence_transformers.SentenceTransformer('all-MiniLM-L6-v2')
 
         train_texts = list()
         test_texts = list()
@@ -250,7 +252,11 @@ class Preprocessing:
             parsed_text = ' '.join(tokens)
             train_texts.append(parsed_text)
         
+        # if os.path.isfile("train_bertyahoo.npz"):
+        #     train_bert_emb = np.load("train_bertyahoo.npz")['arr_0']
+        # else:
         train_bert_emb = bert_model.encode(train_texts, batch_size=256, show_progress_bar=True)
+            # np.savez(f"train_bertyahoo.npz", train_bert_emb)
 
         if raw_test_texts:
             for text in tqdm(raw_test_texts, desc="===>parse test texts"):
@@ -260,7 +266,11 @@ class Preprocessing:
                 parsed_text = ' '.join(tokens)
                 test_texts.append(parsed_text)
         
+            # if os.path.isfile("test_bertyahoo.npz"):
+            #     test_bert_emb = np.load("test_bertyahoo.npz")['arr_0']
+            # else:
             test_bert_emb = bert_model.encode(test_texts, batch_size=256, show_progress_bar=True)
+                # np.savez(f"test_bertyahoo.npz", test_bert_emb)
 
         words, doc_counts = zip(*doc_counts_counter.most_common())
         doc_freqs = np.array(doc_counts) / float(len(train_texts) + len(test_texts))
@@ -277,6 +287,7 @@ class Preprocessing:
 
         if raw_test_texts is not None:
             test_idx = [i for i, text in enumerate(test_texts) if len(text.split()) >= self.min_term]
+            print(test_idx[:10])
 
         # randomly sample
         if self.test_sample_size:
@@ -298,30 +309,50 @@ class Preprocessing:
             print(f"===>sampled train size: {len(train_idx)}")
             print(f"===>sampled train size: {len(test_idx)}")
 
-        train_texts, train_bow = self.parse(np.asarray(train_texts)[train_idx].tolist(), vocab)
 
-        rst = {
-            'vocab': vocab,
-            'train_bow': train_bow,
-            'train_texts': train_texts,
-            'word_embeddings': make_word_embeddings(vocab),
-            'train_bert': train_bert_emb
-        }
+        rst = {}
 
-        if train_labels is not None:
-            rst['train_labels'] = np.asarray(train_labels)[train_idx]
 
-        print(f"Real vocab size: {len(vocab)}")
-        print(f"Real training size: {len(train_texts)} \t avg length: {rst['train_bow'].sum() / len(train_texts):.3f}")
 
         if raw_test_texts is not None:
+            # if os.path.isfile("test_bowyahoo.npz"):
+            #     rst['test_texts'] = file_utils.read_text(f"test_textsyahoo.txt")
+            #     rst['test_bow'] = scipy.sparse.load_npz("test_bowyahoo.npz").toarray()
+            # else:
+            rst['test_texts'], rst['test_bow'] = self.parse(test_texts, vocab)
+                # scipy.sparse.save_npz(f"test_bowyahoo.npz", scipy.sparse.csr_matrix(rst['test_bow']))
+                # file_utils.save_text(rst['test_texts'], f"test_textsyahoo.txt")
+
             rst['test_texts'], rst['test_bow'] = self.parse(np.asarray(test_texts)[test_idx].tolist(), vocab)
+
             rst['test_bert'] = test_bert_emb
 
             if test_labels is not None:
                 rst['test_labels'] = np.asarray(test_labels)[test_idx]
 
             print(f"Real testing size: {len(rst['test_texts'])} \t avg length: {rst['test_bow'].sum() / len(rst['test_texts']):.3f}")
+
+        # rst = {}
+        # if os.path.isfile("train_bowyahoo.npz"):
+        #     train_texts = file_utils.read_text(f"train_textsyahoo.txt")
+        #     train_bow = scipy.sparse.load_npz("train_bowyahoo.npz").toarray()
+        # else:
+        train_texts, train_bow = self.parse(train_texts, vocab)
+            # scipy.sparse.save_npz(f"train_bowyahoo.npz", scipy.sparse.csr_matrix(train_bow))
+            # file_utils.save_text(train_texts, f"train_textsyahoo.txt")
+        # train_texts, train_bow = self.parse(np.asarray(train_texts)[train_idx].tolist(), vocab)
+
+        rst['vocab'] = vocab
+        rst['train_bow'] = train_bow
+        rst['train_texts'] = train_texts
+        rst['word_embeddings'] = make_word_embeddings(vocab)
+        rst['train_bert'] = train_bert_emb
+
+        if train_labels is not None:
+            rst['train_labels'] = np.asarray(train_labels)[train_idx]
+        print(rst.keys())
+        print(f"Real vocab size: {len(vocab)}")
+        print(f"Real training size: {len(train_texts)} \t avg length: {rst['train_bow'].sum() / len(train_texts):.3f}")
 
         return rst
 

@@ -3,6 +3,11 @@ from torch import nn
 
 
 class XGR(nn.Module):
+    '''
+        Effective Neural Topic Modeling with Embedding Clustering Regularization. ICML 2023
+
+        Xiaobao Wu, Xinshuai Dong, Thong Thanh Nguyen, Anh Tuan Luu.
+    '''
     def __init__(self, weight_loss_XGR, sinkhorn_alpha, OT_max_iter=5000, stopThr=.5e-2):
         super().__init__()
 
@@ -37,8 +42,6 @@ class XGR(nn.Module):
                 err = torch.norm(torch.sum(torch.abs(bb - b), dim=0), p=float('inf'))
 
         transp = u * (K * v.T)
-        
-        self.transp = transp
 
         loss_XGR = (torch.exp(group) * (group - transp - 1) \
             + torch.exp(transp)).sum()

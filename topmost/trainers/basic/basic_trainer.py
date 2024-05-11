@@ -63,11 +63,12 @@ class BasicTrainer:
 
             for batch_data in dataset_handler.train_dataloader:
 
-                rst_dict = self.model(batch_data)
+                rst_dict = self.model(batch_data, epoch_id=epoch)
                 batch_loss = rst_dict['loss']
 
                 optimizer.zero_grad()
                 batch_loss.backward()
+                # torch.nn.utils.clip_grad_norm_(self.model.parameters(), True)
                 optimizer.step()
 
                 for key in rst_dict:

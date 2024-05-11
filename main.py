@@ -11,6 +11,7 @@ DATA_DIR = 'data'
 
 if __name__ == "__main__":
     # torch.autograd.set_detect_anomaly(mode=True, check_nan=True)
+    torch.set_printoptions(threshold=10000)
     parser = config.new_parser()
     config.add_dataset_argument(parser)
     config.add_model_argument(parser)
@@ -27,7 +28,7 @@ if __name__ == "__main__":
 
     logger = log.setup_logger(
         'main', os.path.join(current_run_dir, 'main.log'))
-    wandb.init(project='240422night_xtmv4', config=args)
+    wandb.init(project='240511_y', config=args)
     wandb.log({'time_stamp': current_time})
 
     if args.dataset in ['20NG', 'IMDB', 'Rakuten_Amazon', 'NYT', 'ECNews',
@@ -37,7 +38,7 @@ if __name__ == "__main__":
         read_labels = False
 
     # load a preprocessed dataset
-    if args.model in ['YTM']:
+    if args.model in ['YTM', 'ZTM']:
         dataset = topmost.data.BasicDatasetHandler(
             os.path.join(DATA_DIR, args.dataset), device=args.device, read_labels=read_labels,
             as_tensor=True, contextual_embed=True)
@@ -93,7 +94,8 @@ if __name__ == "__main__":
                                                       alpha_XGR=args.alpha_XGR,
                                                       gating_func=args.gating_func,
                                                       weight_global_expert=args.weight_global_expert,
-                                                      weight_local_expert=args.weight_local_expert)
+                                                      weight_local_expert=args.weight_local_expert,
+                                                      k=args.k)
     elif args.model == 'XTM':
         model = topmost.models.MODEL_DICT[args.model](vocab_size=dataset.vocab_size,
                                                       num_topics=args.num_topics,
@@ -104,6 +106,17 @@ if __name__ == "__main__":
                                                       weight_loss_ECR=args.weight_ECR,
                                                       alpha_ECR=args.alpha_ECR,
                                                       alpha_XGR=args.alpha_XGR)
+    elif args.model == 'ZTM':
+        model = topmost.models.MODEL_DICT[args.model](vocab_size=dataset.vocab_size,
+                                                      num_topics=args.num_topics,
+                                                      num_groups=args.num_groups,
+                                                      dropout=args.dropout,
+                                                      pretrained_WE=pretrainWE if args.use_pretrainWE else None,
+                                                      weight_loss_XGR=args.weight_XGR,
+                                                      weight_loss_ECR=args.weight_ECR,
+                                                      alpha_ECR=args.alpha_ECR,
+                                                      alpha_XGR=args.alpha_XGR,
+                                                      weight_loss_MMI=args.weight_MMI)
     elif args.model == 'ECRTM':
         model = topmost.models.MODEL_DICT[args.model](vocab_size=dataset.vocab_size,
                                                       num_topics=args.num_topics,
@@ -128,6 +141,9 @@ if __name__ == "__main__":
         model.weight_loss_XGR = args.weight_XGR
         model.weight_loss_ECR = args.weight_ECR
     if args.model == 'XTM':
+        model.weight_loss_XGR = args.weight_XGR
+        model.weight_loss_ECR = args.weight_ECR
+    if args.model == 'ZTM':
         model.weight_loss_XGR = args.weight_XGR
         model.weight_loss_ECR = args.weight_ECR
     if args.model == 'ECRTM':
@@ -169,7 +185,7 @@ if __name__ == "__main__":
     logger.info(f'test theta argmax: {unique_elements, counts}')
 
     # save word embeddings and topic embeddings
-    if args.model in ['ETM', 'ECRTM', 'XTM', 'XTMv2', 'YTM', 'XTMv3']:
+    if args.model in ['ETM', 'ECRTM', 'XTM', 'XTMv2', 'YTM', 'XTMv3', 'ZTM']:
         trainer.save_embeddings(current_run_dir)
         miscellaneous.tsne_viz(model.word_embeddings.detach().cpu().numpy(),
                                model.topic_embeddings.detach().cpu().numpy(),
@@ -188,7 +204,7 @@ if __name__ == "__main__":
         #     print("VISUALIZE ERROR!!!")
         #     logger.info("VISUALIZE ERROR!!!")
 
-    if args.model in ['XTM', 'XTMv2', 'XTMv3', 'XTMv4']:
+    if args.model in ['XTM', 'XTMv2', 'XTMv3', 'ZTM']:
         miscellaneous.eval_viz_group(args.num_groups, args.num_topics // args.num_groups,
                                      model.topic_embeddings.detach().cpu().numpy(), current_run_dir, logger)
 

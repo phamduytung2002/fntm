@@ -28,6 +28,7 @@ def add_model_argument(parser):
     parser.add_argument('--gating_func', type=str, default='dot_bias')
     parser.add_argument('--weight_global_expert', type=float, default=250.)
     parser.add_argument('--weight_local_expert', type=float, default=250.)
+    parser.add_argument('--k', help='top k expert', type=int, default=1)
 
 
 def add_training_argument(parser):

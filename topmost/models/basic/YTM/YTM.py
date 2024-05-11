@@ -61,10 +61,8 @@ class YTM(nn.Module):
         self.ECR = ECR(weight_loss_ECR, alpha_ECR, sinkhorn_max_iter)
 
         # for MMI
-        self.prj_rep = nn.Sequential(nn.Linear(en_units, en_units),
-                                     nn.Dropout(dropout))
-        self.prj_bert = nn.Sequential(nn.Linear(768, en_units),
-                                      nn.Dropout(dropout))
+        self.prj_rep = nn.Sequential(nn.Linear(en_units, 100))
+        self.prj_bert = nn.Sequential(nn.Linear(384, 100))
         self.weight_loss_MMI = weight_loss_MMI
 
     def get_beta(self):
@@ -97,14 +95,7 @@ class YTM(nn.Module):
 
     def encode(self, input):
         e1 = self.get_representation(input)
-        mu = self.mean_bn(self.fc21(e1))
-        logvar = self.logvar_bn(self.fc22(e1))
-        z = self.reparameterize(mu, logvar)
-        theta = F.softmax(z, dim=1)
-
-        loss_KL = self.compute_loss_KL(mu, logvar)
-
-        return theta, loss_KL
+        return self.get_theta_from_representation(e1)
 
     def get_theta(self, input):
         theta, loss_KL = self.encode(input)
@@ -154,7 +145,7 @@ class YTM(nn.Module):
             torch.sum(y ** 2, dim=1) - 2 * torch.matmul(x, y.t())
         return cost
 
-    def forward(self, input):
+    def forward(self, input, epoch_id=None):
         bow = input["data"]
         contextual_emb = input["contextual_embed"]
 

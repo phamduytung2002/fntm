@@ -4,21 +4,24 @@ from torch import nn
 import torch.nn.functional as F
 from .ECR import ECR
 from .XGR import XGR
-import logging
-import torch_kmeans
+import sentence_transformers
 
 
-class XTM(nn.Module):
-    def __init__(self, vocab_size, num_topics=50, num_groups=10, en_units=200,
-                 dropout=0., pretrained_WE=None, embed_size=200, beta_temp=0.2,
-                 weight_loss_XGR=250.0, weight_loss_ECR=250.0,
-                 alpha_ECR=20.0, alpha_XGR=4.0, sinkhorn_max_iter=1000):
+class ZTM(nn.Module):
+    '''
+        Effective Neural Topic Modeling with Embedding Clustering Regularization. ICML 2023
+
+        Xiaobao Wu, Xinshuai Dong, Thong Thanh Nguyen, Anh Tuan Luu.
+    '''
+
+    def __init__(self, vocab_size, num_topics=50, num_groups=10, en_units=200, dropout=0.,
+                 pretrained_WE=None, embed_size=200, beta_temp=0.2,
+                 weight_loss_ECR=250.0, weight_loss_XGR=250.0,
+                 alpha_XGR=20.0, alpha_ECR=20.0, sinkhorn_max_iter=1000,
+                 weight_loss_MMI=10.0):
         super().__init__()
 
-        self.cnt = 0
-
         self.num_topics = num_topics
-        self.num_groups = num_groups
         self.beta_temp = beta_temp
 
         self.a = 1 * np.ones((1, num_topics)).astype(np.float32)
@@ -57,40 +60,25 @@ class XTM(nn.Module):
         self.topic_embeddings = nn.Parameter(
             F.normalize(self.topic_embeddings))
 
-        # assert (num_topics % num_groups == 0,
-        #         'num_topics should be divisible by num_groups')
+        assert (num_topics % num_groups == 0,
+                'num_topics should be divisible by num_groups')
         self.num_topics_per_group = num_topics // num_groups
-
         self.ECR = ECR(weight_loss_ECR, alpha_ECR, sinkhorn_max_iter)
         self.XGR = XGR(weight_loss_XGR, alpha_XGR, sinkhorn_max_iter)
-        self.group_connection_regularizer = None
-        # self.group_connection_regularizer = torch.ones(
-        #     (self.num_topics_per_group, self.num_topics_per_group))
-        # for _ in range(num_groups-1):
-        #     self.group_connection_regularizer = torch.block_diag(self.group_connection_regularizer, torch.ones(
-        #         (self.num_topics_per_group, self.num_topics_per_group)))
-        # self.group_connection_regularizer.fill_diagonal_(0)
-        # self.group_connection_regularizer /= self.group_connection_regularizer.sum()
-
-    def create_group_connection_regularizer(self):
-        kmean_model = torch_kmeans.KMeans(
-            n_clusters=self.num_groups, max_iter=1000, seed=0, verbose=False,
-            normalize='unit')
-        group_id = kmean_model.fit_predict(self.topic_embeddings.reshape(
-            1, self.topic_embeddings.shape[0], self.topic_embeddings.shape[1]))
-        group_id = group_id.reshape(-1)
-        self.group_connection_regularizer = torch.zeros(
-            (self.num_topics, self.num_topics))
-        for i in range(self.num_topics):
-            for j in range(self.num_topics):
-                if group_id[i] == group_id[j]:
-                    self.group_connection_regularizer[i][j] = 1
+        self.group_connection_regularizer = torch.ones(
+            (self.num_topics_per_group, self.num_topics_per_group))
+        for _ in range(num_groups-1):
+            self.group_connection_regularizer = torch.block_diag(self.group_connection_regularizer, torch.ones(
+                (self.num_topics_per_group, self.num_topics_per_group)))
         self.group_connection_regularizer.fill_diagonal_(0)
         self.group_connection_regularizer /= self.group_connection_regularizer.sum()
 
-        logger = logging.getLogger('main')
-        logger.info('group_connection_reg')
-        logger.info(group_id)
+        # for MMI
+        self.prj_rep = nn.Sequential(nn.Linear(en_units, en_units),
+                                     nn.Dropout(dropout))
+        self.prj_bert = nn.Sequential(nn.Linear(384, en_units),
+                                      nn.Dropout(dropout))
+        self.weight_loss_MMI = weight_loss_MMI
 
     def get_beta(self):
         dist = self.pairwise_euclidean_distance(
@@ -106,10 +94,22 @@ class XTM(nn.Module):
         else:
             return mu
 
-    def encode(self, input):
-        e1 = F.softplus(self.fc11(input))
-        e1 = F.softplus(self.fc12(e1))
+    def get_representation(self, input):
+        e1 = F.relu(self.fc11(input))
+        e1 = F.relu(self.fc12(e1))
         e1 = self.fc1_dropout(e1)
+        return e1
+
+    def get_theta_from_representation(self, e1):
+        mu = self.mean_bn(self.fc21(e1))
+        logvar = self.logvar_bn(self.fc22(e1))
+        z = self.reparameterize(mu, logvar)
+        theta = F.softmax(z, dim=1)
+        loss_KL = self.compute_loss_KL(mu, logvar)
+        return theta, loss_KL
+
+    def encode(self, input):
+        e1 = self.get_representation(input)
         mu = self.mean_bn(self.fc21(e1))
         logvar = self.logvar_bn(self.fc22(e1))
         z = self.reparameterize(mu, logvar)
@@ -125,6 +125,24 @@ class XTM(nn.Module):
             return theta, loss_KL
         else:
             return theta
+
+    def sim(self, rep, bert):
+        prep = self.prj_rep(rep)
+        pbert = self.prj_bert(bert)
+        return torch.exp(F.cosine_similarity(prep, pbert))
+
+    def csim(self, bow, bert):
+        pbow = self.prj_rep(bow)
+        pbert = self.prj_bert(bert)
+        csim_matrix = (pbow@pbert.T) / (pbow.norm(keepdim=True,
+                                                  dim=-1)@pbert.norm(keepdim=True, dim=-1).T)
+        csim_matrix = torch.exp(csim_matrix)
+        csim_matrix = csim_matrix / csim_matrix.sum(dim=1, keepdim=True)
+        return -csim_matrix.log()
+
+    def compute_loss_MMI(self, rep, contextual_emb):
+        sim_matrix = self.csim(rep, contextual_emb)
+        return sim_matrix.diag().mean() * self.weight_loss_MMI
 
     def compute_loss_KL(self, mu, logvar):
         var = logvar.exp()
@@ -146,9 +164,7 @@ class XTM(nn.Module):
 
     def get_loss_XGR(self):
         cost = self.pairwise_euclidean_distance(
-            self.topic_embeddings, self.topic_embeddings) + \
-            1e2 * torch.eye(self.num_topics,
-                            device=self.topic_embeddings.device)
+            self.topic_embeddings, self.topic_embeddings)
         loss_XGR = self.XGR(cost, self.group_connection_regularizer)
         return loss_XGR
 
@@ -158,36 +174,30 @@ class XTM(nn.Module):
         return cost
 
     def forward(self, input, epoch_id=None):
-        input = input['data']
-        theta, loss_KL = self.encode(input)
+        bow = input["data"]
+        contextual_emb = input["contextual_embed"]
+
+        rep = self.get_representation(bow)
+        theta, loss_KL = self.get_theta_from_representation(rep)
+
         beta = self.get_beta()
 
         recon = F.softmax(self.decoder_bn(torch.matmul(theta, beta)), dim=-1)
-        recon_loss = -(input * recon.log()).sum(axis=1).mean()
+        recon_loss = -(bow * recon.log()).sum(axis=1).mean()
 
         loss_TM = recon_loss + loss_KL
 
         loss_ECR = self.get_loss_ECR()
-        if epoch_id is not None and epoch_id == 10 and \
-            not hasattr(self, 'group_connection_regularizer'):
-            self.create_group_connection_regularizer()
-        if epoch_id is not None and epoch_id > 10:
-            loss_XGR = self.get_loss_XGR()
-            self.cnt += 1
-            if self.cnt == 100:
-                logger = logging.getLogger('main')
-                logger.info(f'xgr transp:')
-                logger.info(self.XGR.transp)
-                self.cnt = 0
-        else:
-            loss_XGR = 0.
-        loss = loss_TM + loss_ECR + loss_XGR
+        loss_XGR = self.get_loss_XGR()
+        loss_MMI = self.compute_loss_MMI(rep, contextual_emb)
+
+        loss = loss_TM + loss_ECR + loss_XGR + loss_MMI
 
         rst_dict = {
             'loss': loss,
             'loss_TM': loss_TM,
             'loss_ECR': loss_ECR,
-            'loss_XGR': loss_XGR
+            'loss_MMI': loss_MMI,
         }
 
         return rst_dict

@@ -40,6 +40,7 @@ def tsne_viz(word_embedding, topic_embedding, save_path, viz_group=False):
             str(i), (wt_tsne[word_c.shape[0] + i, 0], wt_tsne[word_c.shape[0] + i, 1]))
     plt.title('Word and Topic Embeddings')
     plt.savefig(save_path)
+    plt.close()
 
 
 def tsne_group_viz(word_embedding, topic_embedding, group_embeddings, save_path_1, save_path_2, viz_group=False):
