@@ -6,10 +6,16 @@ dist
 # Sphinx documentation
 docs/build/
 
-data/
+data/*
 datasets/
 results/
 wandb/
 
 train/
 test/
+
+!data/20NG/
+!data/IMDB
+!data/AGNews
+!data/YahooAnswers
+**.bat

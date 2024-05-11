@@ -204,7 +204,7 @@ if __name__ == "__main__":
         #     print("VISUALIZE ERROR!!!")
         #     logger.info("VISUALIZE ERROR!!!")
 
-    if args.model in ['XTM', 'XTMv2', 'XTMv3', 'ZTM']:
+    if args.model in ['XTMv2', 'XTMv3', 'ZTM']:
         miscellaneous.eval_viz_group(args.num_groups, args.num_topics // args.num_groups,
                                      model.topic_embeddings.detach().cpu().numpy(), current_run_dir, logger)
 
