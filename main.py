@@ -17,6 +17,8 @@ if __name__ == "__main__":
     config.add_model_argument(parser)
     config.add_training_argument(parser)
     args = parser.parse_args()
+    
+    prj = args.wandb_prj if args.wandb_prj else 'topmost'
 
     current_time = miscellaneous.get_current_datetime()
     current_run_dir = os.path.join(RESULT_DIR, current_time)
@@ -28,7 +30,7 @@ if __name__ == "__main__":
 
     logger = log.setup_logger(
         'main', os.path.join(current_run_dir, 'main.log'))
-    wandb.init(project='240512_z2', config=args)
+    wandb.init(project=prj, config=args)
     wandb.log({'time_stamp': current_time})
 
     if args.dataset in ['20NG', 'IMDB', 'Rakuten_Amazon', 'NYT', 'ECNews',
