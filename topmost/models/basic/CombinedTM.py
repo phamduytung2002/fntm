@@ -5,7 +5,7 @@ import numpy as np
 
 
 class CombinedTM(nn.Module):
-    def __init__(self, vocab_size, contextual_embed_size, num_topics=50, en_units=200, dropout=0.4):
+    def __init__(self, vocab_size, contextual_embed_size=384, num_topics=50, en_units=200, dropout=0.4):
         super().__init__()
 
         self.vocab_size = vocab_size
@@ -50,7 +50,7 @@ class CombinedTM(nn.Module):
         return self.fcd1.weight.T
 
     def get_theta(self, x):
-        contextual = self.fc_contextual(x[:, self.vocab_size:])
+        contextual = self.fc_contextual(x)
         # combined = torch.cat((x[:, :self.vocab_size], contextual), dim=1)
         combined = contextual
 
@@ -81,10 +81,12 @@ class CombinedTM(nn.Module):
         d1 = F.softmax(self.decoder_bn(self.fcd1(theta)), dim=1)
         return d1
 
-    def forward(self, x):
-        theta, mu, logvar = self.get_theta(x)
+    def forward(self, x, epoch_id=None):
+        contextual = x['contextual_embed']
+        bow = x['data']
+        theta, mu, logvar = self.get_theta(contextual)
         recon_x = self.decode(theta)
-        loss = self.loss_function(x[:, :self.vocab_size], recon_x, mu, logvar)
+        loss = self.loss_function(bow, recon_x, mu, logvar)
         return {'loss': loss}
 
     def loss_function(self, x, recon_x, mu, logvar):

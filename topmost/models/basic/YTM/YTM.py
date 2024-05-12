@@ -61,8 +61,10 @@ class YTM(nn.Module):
         self.ECR = ECR(weight_loss_ECR, alpha_ECR, sinkhorn_max_iter)
 
         # for MMI
-        self.prj_rep = nn.Sequential(nn.Linear(en_units, 100))
-        self.prj_bert = nn.Sequential(nn.Linear(384, 100))
+        self.prj_rep = nn.Sequential(nn.Linear(en_units, 100),
+                                     nn.Dropout(dropout))
+        self.prj_bert = nn.Sequential(nn.Linear(384, 100),
+                                      nn.Dropout(dropout))
         self.weight_loss_MMI = weight_loss_MMI
 
     def get_beta(self):

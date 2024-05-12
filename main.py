@@ -28,7 +28,7 @@ if __name__ == "__main__":
 
     logger = log.setup_logger(
         'main', os.path.join(current_run_dir, 'main.log'))
-    wandb.init(project='240511_y', config=args)
+    wandb.init(project='240512_z2', config=args)
     wandb.log({'time_stamp': current_time})
 
     if args.dataset in ['20NG', 'IMDB', 'Rakuten_Amazon', 'NYT', 'ECNews',
@@ -38,7 +38,7 @@ if __name__ == "__main__":
         read_labels = False
 
     # load a preprocessed dataset
-    if args.model in ['YTM', 'ZTM']:
+    if args.model in ['YTM', 'ZTM', 'CombinedTM']:
         dataset = topmost.data.BasicDatasetHandler(
             os.path.join(DATA_DIR, args.dataset), device=args.device, read_labels=read_labels,
             as_tensor=True, contextual_embed=True)
@@ -204,9 +204,9 @@ if __name__ == "__main__":
         #     print("VISUALIZE ERROR!!!")
         #     logger.info("VISUALIZE ERROR!!!")
 
-    if args.model in ['XTMv2', 'XTMv3', 'ZTM']:
-        miscellaneous.eval_viz_group(args.num_groups, args.num_topics // args.num_groups,
-                                     model.topic_embeddings.detach().cpu().numpy(), current_run_dir, logger)
+    # if args.model in ['XTMv2', 'XTMv3', 'ZTM']:
+    #     miscellaneous.eval_viz_group(args.num_groups, args.num_topics // args.num_groups,
+    #                                  model.topic_embeddings.detach().cpu().numpy(), current_run_dir, logger)
 
     # model evaluation
     # TD
@@ -215,11 +215,11 @@ if __name__ == "__main__":
     # wandb.log({"TD": TD})
     # logger.info(f"TD: {TD:.5f}")
 
-    TD_10 = topmost.evaluations.compute_topic_diversity(
-        top_words_10, _type="TD")
-    print(f"TD_10: {TD_10:.5f}")
-    wandb.log({"TD_10": TD_10})
-    logger.info(f"TD_10: {TD_10:.5f}")
+    # TD_10 = topmost.evaluations.compute_topic_diversity(
+    #     top_words_10, _type="TD")
+    # print(f"TD_10: {TD_10:.5f}")
+    # wandb.log({"TD_10": TD_10})
+    # logger.info(f"TD_10: {TD_10:.5f}")
 
     TD_15 = topmost.evaluations.compute_topic_diversity(
         top_words_15, _type="TD")
@@ -227,17 +227,17 @@ if __name__ == "__main__":
     wandb.log({"TD_15": TD_15})
     logger.info(f"TD_15: {TD_15:.5f}")
 
-    TD_20 = topmost.evaluations.compute_topic_diversity(
-        top_words_20, _type="TD")
-    print(f"TD_20: {TD_20:.5f}")
-    wandb.log({"TD_20": TD_20})
-    logger.info(f"TD_20: {TD_20:.5f}")
+    # TD_20 = topmost.evaluations.compute_topic_diversity(
+    #     top_words_20, _type="TD")
+    # print(f"TD_20: {TD_20:.5f}")
+    # wandb.log({"TD_20": TD_20})
+    # logger.info(f"TD_20: {TD_20:.5f}")
 
-    TD_25 = topmost.evaluations.compute_topic_diversity(
-        top_words_25, _type="TD")
-    print(f"TD_25: {TD_25:.5f}")
-    wandb.log({"TD_25": TD_25})
-    logger.info(f"TD_25: {TD_25:.5f}")
+    # TD_25 = topmost.evaluations.compute_topic_diversity(
+    #     top_words_25, _type="TD")
+    # print(f"TD_25: {TD_25:.5f}")
+    # wandb.log({"TD_25": TD_25})
+    # logger.info(f"TD_25: {TD_25:.5f}")
 
     # evaluating clustering
     if read_labels:

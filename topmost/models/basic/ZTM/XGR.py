@@ -25,8 +25,8 @@ class XGR(nn.Module):
         group = group.to(device)
 
         # Sinkhorn's algorithm
-        a = (torch.ones(M.shape[0]) / M.shape[0]).unsqueeze(1).to(device)
-        b = (torch.ones(M.shape[1]) / M.shape[1]).unsqueeze(1).to(device)
+        a = (group.sum(axis=0)).unsqueeze(1).to(device)
+        b = (group.sum(axis=1)).unsqueeze(1).to(device)
 
         u = (torch.ones_like(a) / a.size()[0]).to(device) # Kx1
 

@@ -168,8 +168,7 @@ class XTM(nn.Module):
         loss_TM = recon_loss + loss_KL
 
         loss_ECR = self.get_loss_ECR()
-        if epoch_id is not None and epoch_id == 10 and \
-            not hasattr(self, 'group_connection_regularizer'):
+        if epoch_id is not None and epoch_id == 10 and self.group_connection_regularizer is None:
             self.create_group_connection_regularizer()
         if epoch_id is not None and epoch_id > 10:
             loss_XGR = self.get_loss_XGR()

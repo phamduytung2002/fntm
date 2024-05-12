@@ -4,6 +4,8 @@ from torch import nn
 import torch.nn.functional as F
 from .ECR import ECR
 from .XGR import XGR
+import torch_kmeans
+import logging
 import sentence_transformers
 
 
@@ -22,7 +24,9 @@ class ZTM(nn.Module):
         super().__init__()
 
         self.num_topics = num_topics
+        self.num_groups = num_groups
         self.beta_temp = beta_temp
+
 
         self.a = 1 * np.ones((1, num_topics)).astype(np.float32)
         self.mu2 = nn.Parameter(torch.as_tensor(
@@ -65,13 +69,15 @@ class ZTM(nn.Module):
         self.num_topics_per_group = num_topics // num_groups
         self.ECR = ECR(weight_loss_ECR, alpha_ECR, sinkhorn_max_iter)
         self.XGR = XGR(weight_loss_XGR, alpha_XGR, sinkhorn_max_iter)
-        self.group_connection_regularizer = torch.ones(
-            (self.num_topics_per_group, self.num_topics_per_group))
-        for _ in range(num_groups-1):
-            self.group_connection_regularizer = torch.block_diag(self.group_connection_regularizer, torch.ones(
-                (self.num_topics_per_group, self.num_topics_per_group)))
-        self.group_connection_regularizer.fill_diagonal_(0)
-        self.group_connection_regularizer /= self.group_connection_regularizer.sum()
+        self.group_connection_regularizer = None
+
+        # self.group_connection_regularizer = torch.ones(
+        #     (self.num_topics_per_group, self.num_topics_per_group))
+        # for _ in range(num_groups-1):
+        #     self.group_connection_regularizer = torch.block_diag(self.group_connection_regularizer, torch.ones(
+        #         (self.num_topics_per_group, self.num_topics_per_group)))
+        # self.group_connection_regularizer.fill_diagonal_(0)
+        # self.group_connection_regularizer /= self.group_connection_regularizer.sum()
 
         # for MMI
         self.prj_rep = nn.Sequential(nn.Linear(en_units, en_units),
@@ -79,6 +85,29 @@ class ZTM(nn.Module):
         self.prj_bert = nn.Sequential(nn.Linear(384, en_units),
                                       nn.Dropout(dropout))
         self.weight_loss_MMI = weight_loss_MMI
+
+    def create_group_connection_regularizer(self):
+        kmean_model = torch_kmeans.KMeans(
+            n_clusters=self.num_groups, max_iter=1000, seed=0, verbose=False,
+            normalize='unit')
+        group_id = kmean_model.fit_predict(self.topic_embeddings.reshape(
+            1, self.topic_embeddings.shape[0], self.topic_embeddings.shape[1]))
+        group_id = group_id.reshape(-1)
+        self.group_topic = [[] for _ in range(self.num_groups)]
+        for i in range(self.num_topics):
+            self.group_topic[group_id[i]].append(i)
+        self.group_connection_regularizer = torch.zeros(
+            (self.num_topics, self.num_topics))
+        for i in range(self.num_topics):
+            for j in range(self.num_topics):
+                if group_id[i] == group_id[j]:
+                    self.group_connection_regularizer[i][j] = 1
+        self.group_connection_regularizer.fill_diagonal_(0)
+        self.group_connection_regularizer /= self.group_connection_regularizer.sum()
+
+        logger = logging.getLogger('main')
+        logger.info('group_connection_reg')
+        logger.info(group_id)
 
     def get_beta(self):
         dist = self.pairwise_euclidean_distance(
@@ -188,8 +217,13 @@ class ZTM(nn.Module):
         loss_TM = recon_loss + loss_KL
 
         loss_ECR = self.get_loss_ECR()
-        loss_XGR = self.get_loss_XGR()
         loss_MMI = self.compute_loss_MMI(rep, contextual_emb)
+        if epoch_id is not None and epoch_id == 10 and self.group_connection_regularizer is None:
+            self.create_group_connection_regularizer()
+        if epoch_id is not None and epoch_id > 10:
+            loss_XGR = self.get_loss_XGR()
+        else:
+            loss_XGR = 0.
 
         loss = loss_TM + loss_ECR + loss_XGR + loss_MMI
 
@@ -197,6 +231,7 @@ class ZTM(nn.Module):
             'loss': loss,
             'loss_TM': loss_TM,
             'loss_ECR': loss_ECR,
+            'loss_XGR': loss_XGR,
             'loss_MMI': loss_MMI,
         }
 
