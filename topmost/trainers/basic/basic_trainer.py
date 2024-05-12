@@ -4,6 +4,7 @@ import torch
 from torch.optim.lr_scheduler import StepLR
 from collections import defaultdict
 from topmost.utils import static_utils
+from topmost.models.basic.CombinedTM import CombinedTM
 import wandb
 import logging
 import os
@@ -117,8 +118,12 @@ class BasicTrainer:
         return top_words
 
     def export_theta(self, dataset_handler):
-        train_theta = self.test(dataset_handler.train_data)
-        test_theta = self.test(dataset_handler.test_data)
+        if not isinstance(self.model, CombinedTM):
+            train_theta = self.test(dataset_handler.train_data)
+            test_theta = self.test(dataset_handler.test_data)
+        else:
+            train_theta = self.test(dataset_handler.train_contextual_embed)
+            test_theta = self.test(dataset_handler.test_contextual_embed)
         return train_theta, test_theta
 
     def save_beta(self, dir_path):

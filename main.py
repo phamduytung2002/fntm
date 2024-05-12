@@ -124,6 +124,11 @@ if __name__ == "__main__":
                                                       pretrained_WE=pretrainWE if args.use_pretrainWE else None,
                                                       weight_loss_ECR=args.weight_ECR,
                                                       alpha_ECR=args.alpha_ECR)
+    elif args.model == 'CombinedTM':
+        model = topmost.models.MODEL_DICT[args.model](vocab_size=dataset.vocab_size,
+                                                      num_topics=args.num_topics,
+                                                      dropout=args.dropout,
+                                                      contextual_embed_size=dataset.contextual_embed_size)
     else:
         model = topmost.models.MODEL_DICT[args.model](vocab_size=dataset.vocab_size,
                                                       num_topics=args.num_topics,
