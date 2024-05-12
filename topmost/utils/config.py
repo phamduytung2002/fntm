@@ -4,6 +4,9 @@ import argparse
 def new_parser(name=None):
     return argparse.ArgumentParser(prog=name)
 
+def add_logging_argument(parser):
+    parser.add_argument('--wandb_prj', type=str, default='topmost')
+
 
 def add_dataset_argument(parser):
     parser.add_argument('--dataset', type=str,
