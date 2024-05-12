@@ -106,6 +106,9 @@ class ZTM(nn.Module):
         self.group_connection_regularizer /= self.group_connection_regularizer.sum()
 
         logger = logging.getLogger('main')
+        logger.info('groups:')
+        for i in range(self.num_groups):
+            logger.info(f'group {i}: {self.group_topic[i]}')
         logger.info('group_connection_reg')
         logger.info(group_id)
 

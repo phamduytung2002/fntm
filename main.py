@@ -35,7 +35,7 @@ if __name__ == "__main__":
     wandb.log({'time_stamp': current_time})
 
     if args.dataset in ['20NG', 'IMDB', 'Rakuten_Amazon', 'NYT', 'ECNews',
-                        'Amazon_Review', 'AGNews']:
+                        'Amazon_Review', 'AGNews', 'YahooAnswers']:
         read_labels = True
     else:
         read_labels = False
