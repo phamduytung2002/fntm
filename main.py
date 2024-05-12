@@ -15,6 +15,7 @@ if __name__ == "__main__":
     parser = config.new_parser()
     config.add_dataset_argument(parser)
     config.add_model_argument(parser)
+    config.add_logging_argument(parser)
     config.add_training_argument(parser)
     args = parser.parse_args()
     
