@@ -19,8 +19,8 @@ class CombinedTM(nn.Module):
         self.var2.requires_grad = False
 
         self.fc_contextual = nn.Linear(contextual_embed_size, vocab_size)
-        # self.fc11 = nn.Linear(vocab_size + vocab_size, en_units)
-        self.fc11 = nn.Linear(vocab_size, en_units)
+        self.fc11 = nn.Linear(vocab_size + vocab_size, en_units)
+        # self.fc11 = nn.Linear(vocab_size, en_units)
         self.fc12 = nn.Linear(en_units, en_units)
         self.fc21 = nn.Linear(en_units, num_topics)
         self.fc22 = nn.Linear(en_units, num_topics)
@@ -49,10 +49,10 @@ class CombinedTM(nn.Module):
     def get_beta(self):
         return self.fcd1.weight.T
 
-    def get_theta(self, x):
-        contextual = self.fc_contextual(x)
-        # combined = torch.cat((x[:, :self.vocab_size], contextual), dim=1)
-        combined = contextual
+    def get_theta(self, bow, contextual):
+        contextual = self.fc_contextual(contextual)
+        combined = torch.cat((bow, contextual), dim=1)
+        # combined = contextual
 
         mu, logvar = self.encode(combined)
         z = self.reparameterize(mu, logvar)
@@ -84,7 +84,7 @@ class CombinedTM(nn.Module):
     def forward(self, x, epoch_id=None):
         contextual = x['contextual_embed']
         bow = x['data']
-        theta, mu, logvar = self.get_theta(contextual)
+        theta, mu, logvar = self.get_theta(bow, contextual)
         recon_x = self.decode(theta)
         loss = self.loss_function(bow, recon_x, mu, logvar)
         return {'loss': loss}

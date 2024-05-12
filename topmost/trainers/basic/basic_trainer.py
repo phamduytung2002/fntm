@@ -94,16 +94,29 @@ class BasicTrainer:
                 self.logger.info(output_log)
 
     def test(self, input_data):
-        data_size = input_data.shape[0]
-        theta = list()
-        all_idx = torch.split(torch.arange(data_size), self.batch_size)
+        if not isinstance(self.model, CombinedTM):
+            data_size = input_data.shape[0]
+            theta = list()
+            all_idx = torch.split(torch.arange(data_size), self.batch_size)
 
-        with torch.no_grad():
-            self.model.eval()
-            for idx in all_idx:
-                batch_input = input_data[idx]
-                batch_theta = self.model.get_theta(batch_input)
-                theta.extend(batch_theta.cpu().tolist())
+            with torch.no_grad():
+                self.model.eval()
+                for idx in all_idx:
+                    batch_input = input_data[idx]
+                    batch_theta = self.model.get_theta(batch_input)
+                    theta.extend(batch_theta.cpu().tolist())
+        else:
+            data_size = input_data[0].shape[0]
+            theta = list()
+            all_idx = torch.split(torch.arange(data_size), self.batch_size)
+
+            with torch.no_grad():
+                self.model.eval()
+                for idx in all_idx:
+                    batch_bow = input_data[0][idx]
+                    batch_contextual = input_data[1][idx]
+                    batch_theta = self.model.get_theta(batch_bow, batch_contextual)
+                    theta.extend(batch_theta.cpu().tolist())
 
         theta = np.asarray(theta)
         return theta
@@ -122,8 +135,8 @@ class BasicTrainer:
             train_theta = self.test(dataset_handler.train_data)
             test_theta = self.test(dataset_handler.test_data)
         else:
-            train_theta = self.test(dataset_handler.train_contextual_embed)
-            test_theta = self.test(dataset_handler.test_contextual_embed)
+            train_theta = self.test((dataset_handler.train_data, dataset_handler.train_contextual_embed))
+            test_theta = self.test((dataset_handler.test_data, dataset_handler.test_contextual_embed))
         return train_theta, test_theta
 
     def save_beta(self, dir_path):
