@@ -103,7 +103,7 @@ class ECRTM(nn.Module):
         cost = torch.sum(x ** 2, axis=1, keepdim=True) + torch.sum(y ** 2, dim=1) - 2 * torch.matmul(x, y.t())
         return cost
 
-    def forward(self, input):
+    def forward(self, input, epoch_id=None):
         input = input['data']
         theta, loss_KL = self.encode(input)
         beta = self.get_beta()
