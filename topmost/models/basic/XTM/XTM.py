@@ -79,8 +79,11 @@ class XTM(nn.Module):
         group_id = kmean_model.fit_predict(self.topic_embeddings.reshape(
             1, self.topic_embeddings.shape[0], self.topic_embeddings.shape[1]))
         group_id = group_id.reshape(-1)
-        self.group_connection_regularizer = torch.zeros(
-            (self.num_topics, self.num_topics))
+        self.group_topic = [[] for _ in range(self.num_groups)]
+        for i in range(self.num_topics):
+            self.group_topic[group_id[i]].append(i)
+        self.group_connection_regularizer = torch.ones(
+            (self.num_topics, self.num_topics)) / 5.
         for i in range(self.num_topics):
             for j in range(self.num_topics):
                 if group_id[i] == group_id[j]:
@@ -89,6 +92,9 @@ class XTM(nn.Module):
         self.group_connection_regularizer /= self.group_connection_regularizer.sum()
 
         logger = logging.getLogger('main')
+        logger.info('groups:')
+        for i in range(self.num_groups):
+            logger.info(f'group {i}: {self.group_topic[i]}')
         logger.info('group_connection_reg')
         logger.info(group_id)
 

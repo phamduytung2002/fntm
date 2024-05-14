@@ -96,8 +96,8 @@ class ZTM(nn.Module):
         self.group_topic = [[] for _ in range(self.num_groups)]
         for i in range(self.num_topics):
             self.group_topic[group_id[i]].append(i)
-        self.group_connection_regularizer = torch.zeros(
-            (self.num_topics, self.num_topics))
+        self.group_connection_regularizer = torch.ones(
+            (self.num_topics, self.num_topics)) / 5.
         for i in range(self.num_topics):
             for j in range(self.num_topics):
                 if group_id[i] == group_id[j]:
