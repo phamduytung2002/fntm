@@ -12,36 +12,40 @@ class XGR(nn.Module):
         self.stopThr = stopThr
         self.epsilon = 1e-16
 
-    def forward(self, M, group):
-        # M: KxV
-        # a: Kx1
-        # b: Vx1
-        device = M.device
-        group = group.to(device)
-
-        # Sinkhorn's algorithm
-        a = (torch.ones(M.shape[0]) / M.shape[0]).unsqueeze(1).to(device)
-        b = (torch.ones(M.shape[1]) / M.shape[1]).unsqueeze(1).to(device)
-
-        u = (torch.ones_like(a) / a.size()[0]).to(device) # Kx1
-
-        K = torch.exp(-M * self.sinkhorn_alpha)
-        err = 1
-        cpt = 0
-        while err > self.stopThr and cpt < self.OT_max_iter:
-            v = torch.div(b, torch.matmul(K.t(), u) + self.epsilon)
-            u = torch.div(a, torch.matmul(K, v) + self.epsilon)
-            cpt += 1
-            if cpt % 50 == 1:
-                bb = torch.mul(v, torch.matmul(K.t(), u))
-                err = torch.norm(torch.sum(torch.abs(bb - b), dim=0), p=float('inf'))
-
-        transp = u * (K * v.T)
+    def symmetric_sinkhorn(C, eps=1e0, f0=None, max_iter=1000, tol=1e-6, verbose=False):
+        """
+        Performs Sinkhorn iterations in log domain to solve the entropic symmetric
+        OT problem with symmetric cost C and entropic regularization eps.
+        """
+        n = C.shape[0]
         
-        self.transp = transp
+        if f0 is None:
+            f = torch.zeros(n, dtype=C.dtype, device=C.device)
+        else:
+            f = f0
 
-        loss_XGR = (torch.exp(group) * (group - transp - 1) \
-            + torch.exp(transp)).sum()
+        for k in range(max_iter):
+            # well-conditioned symmetric Sinkhorn update
+            f = 0.5 * (f - eps * torch.logsumexp((f - C) / eps, -1))
+
+            # check convergence every 10 iterations
+            if k % 10 == 0: 
+                log_T = (f[:, None] + f[None, :] - C) / eps
+                if (torch.abs(torch.exp(torch.logsumexp(log_T, -1))-1) < tol).all():
+                    if verbose:
+                        print(f'---------- Breaking at iter {k} ----------')
+                    break
+
+            if k == max_iter-1:
+                if verbose:
+                    print('---------- Max iter attained for Sinkhorn algorithm ----------')
+
+        return (f[:, None] + f[None, :] - C) / eps, f
+
+
+    def forward(self, M, group, eps=1):
+        log_Q, f = self.symmetric_sinkhorn(M, eps=eps, max_iter=1000, f0=f.detach())
+        loss_XGR = (group * (group.log() - log_Q - 1) + torch.exp(log_Q)).sum()
         loss_XGR *= self.weight_loss_XGR
 
         return loss_XGR
