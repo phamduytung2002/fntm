@@ -26,6 +26,8 @@ class ZTM(nn.Module):
         self.num_topics = num_topics
         self.num_groups = num_groups
         self.beta_temp = beta_temp
+        
+        self.cnt = 0
 
 
         self.a = 1 * np.ones((1, num_topics)).astype(np.float32)
