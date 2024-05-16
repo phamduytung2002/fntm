@@ -18,6 +18,8 @@ class ECR(nn.Module):
         self.epsilon = 1e-16
 
     def forward(self, M):
+        if self.weight_loss_ECR < 1e-6:
+            return 0
         # M: KxV
         # a: Kx1
         # b: Vx1

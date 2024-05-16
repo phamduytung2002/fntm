@@ -61,10 +61,11 @@ class YTM(nn.Module):
         self.ECR = ECR(weight_loss_ECR, alpha_ECR, sinkhorn_max_iter)
 
         # for MMI
-        self.prj_rep = nn.Sequential(nn.Linear(en_units, 100),
+        self.prj_rep = nn.Sequential(nn.Linear(self.num_topics, 384),
                                      nn.Dropout(dropout))
-        self.prj_bert = nn.Sequential(nn.Linear(384, 100),
-                                      nn.Dropout(dropout))
+        # self.prj_bert = nn.Sequential(nn.Linear(384, 100),
+        #                               nn.Dropout(dropout))
+        self.prj_bert = nn.Sequential()
         self.weight_loss_MMI = weight_loss_MMI
 
     def get_beta(self):
@@ -85,19 +86,20 @@ class YTM(nn.Module):
         e1 = F.relu(self.fc11(input))
         e1 = F.relu(self.fc12(e1))
         e1 = self.fc1_dropout(e1)
-        return e1
-
-    def get_theta_from_representation(self, e1):
         mu = self.mean_bn(self.fc21(e1))
         logvar = self.logvar_bn(self.fc22(e1))
         z = self.reparameterize(mu, logvar)
         theta = F.softmax(z, dim=1)
-        loss_KL = self.compute_loss_KL(mu, logvar)
-        return theta, loss_KL
+        return theta, mu, logvar
+
+    # def get_theta_from_representation(self, e1):
+    #     loss_KL = self.compute_loss_KL(mu, logvar)
+    #     return theta, loss_KL
 
     def encode(self, input):
-        e1 = self.get_representation(input)
-        return self.get_theta_from_representation(e1)
+        theta, mu, logvar = self.get_representation(input)
+        loss_KL = self.compute_loss_KL(mu, logvar)
+        return theta, loss_KL
 
     def get_theta(self, input):
         theta, loss_KL = self.encode(input)
@@ -151,8 +153,9 @@ class YTM(nn.Module):
         bow = input["data"]
         contextual_emb = input["contextual_embed"]
 
-        rep = self.get_representation(bow)
-        theta, loss_KL = self.get_theta_from_representation(rep)
+        rep, mu, logvar = self.get_representation(bow)
+        loss_KL = self.compute_loss_KL(mu, logvar)
+        theta = rep
 
         beta = self.get_beta()
 
