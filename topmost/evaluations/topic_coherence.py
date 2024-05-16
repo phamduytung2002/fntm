@@ -46,15 +46,29 @@ def C_V_on_wikipedia(top_word_path, cv_type='C_V'):
     """
     Compute the C_V score on the Wikipedia dataset
     """
-    jar_dir = os.path.join("topmost", "evaluations")
-    wiki_dir = os.path.join(".", 'data')
-    random_number = np.random.randint(100000)
-    os.system(
-        f"java -jar {os.path.join(jar_dir, 'pametto.jar')} {os.path.join(wiki_dir, 'wikipedia', 'wikipedia_bd')} {cv_type} {top_word_path} > tmp{random_number}.txt")
-    cv_score = []
-    with open(f"tmp{random_number}.txt", "r") as f:
-        for line in f.readlines():
-            if not line.startswith("202"):
-                cv_score.append(float(line.strip().split()[1]))
-    os.remove(f"tmp{random_number}.txt")
-    return cv_score, sum(cv_score) / len(cv_score)
+    try:
+        jar_dir = os.path.join("topmost", "evaluations")
+        wiki_dir = os.path.join(".", 'data')
+        random_number = np.random.randint(100000)
+        os.system(
+            f"java -jar {os.path.join(jar_dir, 'pametto.jar')} {os.path.join(wiki_dir, 'wikipedia', 'wikipedia_bd')} {cv_type} {top_word_path} > tmp{random_number}.txt")
+        cv_score = []
+        with open(f"tmp{random_number}.txt", "r") as f:
+            for line in f.readlines():
+                if not line.startswith("202"):
+                    cv_score.append(float(line.strip().split()[1]))
+        os.remove(f"tmp{random_number}.txt")
+        return cv_score, sum(cv_score) / len(cv_score)
+    except:
+        jar_dir = os.path.join("topmost", "evaluations")
+        wiki_dir = "/kaggle/input/wikipedia/"
+        random_number = np.random.randint(100000)
+        os.system(
+            f"java -jar {os.path.join(jar_dir, 'pametto.jar')} {os.path.join(wiki_dir, 'wikipedia', 'wikipedia_bd')} {cv_type} {top_word_path} > tmp{random_number}.txt")
+        cv_score = []
+        with open(f"tmp{random_number}.txt", "r") as f:
+            for line in f.readlines():
+                if not line.startswith("202"):
+                    cv_score.append(float(line.strip().split()[1]))
+        os.remove(f"tmp{random_number}.txt")
+        return cv_score, sum(cv_score) / len(cv_score)

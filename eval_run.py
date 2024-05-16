@@ -43,8 +43,6 @@ if __name__ == "__main__":
     
     print(test_theta.argmax(axis=1))
     
-    exit(0)
-
     # tsne visualization
     miscellaneous.tsne_viz(word_embeddings, topic_embeddings,
                            os.path.join(dir, 'tsne.png'))
@@ -67,8 +65,18 @@ if __name__ == "__main__":
         logger.info(f"NMI: {clustering_results['NMI']}")
         logger.info(f"Purity: {clustering_results['Purity']}")
 
-    # TC
-    _, TC = topmost.evaluations.topic_coherence.C_V_on_wikipedia(
-        os.path.join(dir, 'top_words.txt'))
-    print(f"TC: {TC:.5f}")
-    logger.info(f"TC: {TC:.5f}")
+    # evaluate classification
+    if read_labels:
+        classification_results = topmost.evaluations.evaluate_classification(
+            train_theta, test_theta, dataset.train_labels, dataset.test_labels)
+        print(f"Accuracy: ", classification_results['acc'])
+        logger.info(f"Accuracy: {classification_results['acc']}")
+        print(f"Macro-f1", classification_results['macro-F1'])
+        logger.info(f"Macro-f1: {classification_results['macro-F1']}")
+
+
+    # # TC
+    # _, TC = topmost.evaluations.topic_coherence.C_V_on_wikipedia(
+    #     os.path.join(dir, 'top_words.txt'))
+    # print(f"TC: {TC:.5f}")
+    # logger.info(f"TC: {TC:.5f}")
