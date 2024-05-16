@@ -49,13 +49,14 @@ class XTM(nn.Module):
         else:
             self.word_embeddings = nn.init.trunc_normal_(
                 torch.empty(vocab_size, embed_size))
-        self.word_embeddings = nn.Parameter(F.normalize(self.word_embeddings))
+        self.word_embeddings = nn.Parameter(
+            F.normalize(self.word_embeddings)).to()
 
         self.topic_embeddings = torch.empty(
             (num_topics, self.word_embeddings.shape[1]))
         nn.init.trunc_normal_(self.topic_embeddings, std=0.1)
         self.topic_embeddings = nn.Parameter(
-            F.normalize(self.topic_embeddings))
+            F.normalize(self.topic_embeddings)).to(self.word_embeddings.device)
 
         # assert (num_topics % num_groups == 0,
         #         'num_topics should be divisible by num_groups')
@@ -71,6 +72,8 @@ class XTM(nn.Module):
         #         (self.num_topics_per_group, self.num_topics_per_group)))
         # self.group_connection_regularizer.fill_diagonal_(0)
         # self.group_connection_regularizer /= self.group_connection_regularizer.sum()
+        
+        self.logger = logging.getLogger('main')
 
     def create_group_connection_regularizer(self):
         kmean_model = torch_kmeans.KMeans(
@@ -82,14 +85,17 @@ class XTM(nn.Module):
         self.group_topic = [[] for _ in range(self.num_groups)]
         for i in range(self.num_topics):
             self.group_topic[group_id[i]].append(i)
+
         self.group_connection_regularizer = torch.ones(
-            (self.num_topics, self.num_topics)) / 5.
+            (self.num_topics, self.num_topics), device=self.topic_embeddings.device) / 5.
         for i in range(self.num_topics):
             for j in range(self.num_topics):
                 if group_id[i] == group_id[j]:
                     self.group_connection_regularizer[i][j] = 1
         self.group_connection_regularizer.fill_diagonal_(0)
-        self.group_connection_regularizer /= self.group_connection_regularizer.sum()
+        self.group_connection_regularizer = self.group_connection_regularizer.clamp(min=1e-4)
+        self.group_connection_regularizer = self.group_connection_regularizer / \
+            self.group_connection_regularizer.sum()
 
         logger = logging.getLogger('main')
         logger.info('groups:')
@@ -174,15 +180,14 @@ class XTM(nn.Module):
         loss_TM = recon_loss + loss_KL
 
         loss_ECR = self.get_loss_ECR()
-        if epoch_id is not None and epoch_id == 10 and self.group_connection_regularizer is None:
+        if epoch_id == 10 and self.group_connection_regularizer is None:
             self.create_group_connection_regularizer()
-        if epoch_id is not None and epoch_id > 10:
+        if self.group_connection_regularizer is not None and epoch_id > 10:
             loss_XGR = self.get_loss_XGR()
             self.cnt += 1
             if self.cnt == 100:
-                logger = logging.getLogger('main')
-                logger.info(f'xgr transp:')
-                logger.info(self.XGR.transp)
+                self.logger.info(f'xgr transp:')
+                self.logger.info(self.XGR.transp)
                 self.cnt = 0
         else:
             loss_XGR = 0.

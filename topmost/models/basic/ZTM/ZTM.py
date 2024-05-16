@@ -85,6 +85,8 @@ class ZTM(nn.Module):
         self.prj_bert = nn.Sequential(nn.Linear(384, en_units),
                                       nn.Dropout(dropout))
         self.weight_loss_MMI = weight_loss_MMI
+        
+        self.logger = logging.getLogger('main')
 
     def create_group_connection_regularizer(self):
         kmean_model = torch_kmeans.KMeans(
@@ -96,14 +98,17 @@ class ZTM(nn.Module):
         self.group_topic = [[] for _ in range(self.num_groups)]
         for i in range(self.num_topics):
             self.group_topic[group_id[i]].append(i)
+
         self.group_connection_regularizer = torch.ones(
-            (self.num_topics, self.num_topics)) / 5.
+            (self.num_topics, self.num_topics), device=self.topic_embeddings.device) / 5.
         for i in range(self.num_topics):
             for j in range(self.num_topics):
                 if group_id[i] == group_id[j]:
                     self.group_connection_regularizer[i][j] = 1
         self.group_connection_regularizer.fill_diagonal_(0)
-        self.group_connection_regularizer /= self.group_connection_regularizer.sum()
+        self.group_connection_regularizer = self.group_connection_regularizer.clamp(min=1e-4)
+        self.group_connection_regularizer = self.group_connection_regularizer / \
+            self.group_connection_regularizer.sum()
 
         logger = logging.getLogger('main')
         logger.info('groups:')
@@ -221,10 +226,15 @@ class ZTM(nn.Module):
 
         loss_ECR = self.get_loss_ECR()
         loss_MMI = self.compute_loss_MMI(rep, contextual_emb)
-        if epoch_id is not None and epoch_id == 10 and self.group_connection_regularizer is None:
+        if epoch_id == 10 and self.group_connection_regularizer is None:
             self.create_group_connection_regularizer()
-        if epoch_id is not None and epoch_id > 10:
+        if self.group_connection_regularizer is not None and epoch_id > 10:
             loss_XGR = self.get_loss_XGR()
+            self.cnt += 1
+            if self.cnt == 100:
+                self.logger.info(f'xgr transp:')
+                self.logger.info(self.XGR.transp)
+                self.cnt = 0
         else:
             loss_XGR = 0.
 

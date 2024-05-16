@@ -12,40 +12,38 @@ class XGR(nn.Module):
         self.stopThr = stopThr
         self.epsilon = 1e-16
 
-    def symmetric_sinkhorn(C, eps=1e0, f0=None, max_iter=1000, tol=1e-6, verbose=False):
-        """
-        Performs Sinkhorn iterations in log domain to solve the entropic symmetric
-        OT problem with symmetric cost C and entropic regularization eps.
-        """
-        n = C.shape[0]
-        
-        if f0 is None:
-            f = torch.zeros(n, dtype=C.dtype, device=C.device)
-        else:
-            f = f0
+    def forward(self, M, group):
+        # M: KxV cost matrix
+        # sinkhorn alpha = 1/ entropic reg weight
+        # a: Kx1 source distribution
+        # b: Vx1 target distribution
+        device = M.device
+        group = group.to(device)
 
-        for k in range(max_iter):
-            # well-conditioned symmetric Sinkhorn update
-            f = 0.5 * (f - eps * torch.logsumexp((f - C) / eps, -1))
+        # Sinkhorn's algorithm
+        a = (group.sum(axis=1)).unsqueeze(1).to(device)
+        b = (group.sum(axis=0)).unsqueeze(1).to(device)
 
-            # check convergence every 10 iterations
-            if k % 10 == 0: 
-                log_T = (f[:, None] + f[None, :] - C) / eps
-                if (torch.abs(torch.exp(torch.logsumexp(log_T, -1))-1) < tol).all():
-                    if verbose:
-                        print(f'---------- Breaking at iter {k} ----------')
-                    break
+        u = (torch.ones_like(a) / a.size()[0]).to(device) # Kx1
 
-            if k == max_iter-1:
-                if verbose:
-                    print('---------- Max iter attained for Sinkhorn algorithm ----------')
+        K = torch.exp(-M * self.sinkhorn_alpha)
+        err = 1
+        cpt = 0
+        while err > self.stopThr and cpt < self.OT_max_iter:
+            v = torch.div(b, torch.matmul(K.t(), u) + self.epsilon)
+            u = torch.div(a, torch.matmul(K, v) + self.epsilon)
+            cpt += 1
+            if cpt % 50 == 1:
+                bb = torch.mul(v, torch.matmul(K.t(), u))
+                err = torch.norm(torch.sum(torch.abs(bb - b), dim=0), p=float('inf'))
 
-        return (f[:, None] + f[None, :] - C) / eps, f
+        transp = u * (K * v.T)
+        transp = transp.clamp(min=1e-6)
 
+        self.transp = transp
 
-    def forward(self, M, group, eps=1):
-        log_Q, f = self.symmetric_sinkhorn(M, eps=eps, max_iter=1000, f0=f.detach())
-        loss_XGR = (group * (group.log() - log_Q - 1) + torch.exp(log_Q)).sum()
+        loss_XGR = (group * (group.log() - transp.log() - 1) \
+            + transp).sum()
         loss_XGR *= self.weight_loss_XGR
 
         return loss_XGR

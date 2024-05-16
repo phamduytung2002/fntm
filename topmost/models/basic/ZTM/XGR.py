@@ -3,11 +3,6 @@ from torch import nn
 
 
 class XGR(nn.Module):
-    '''
-        Effective Neural Topic Modeling with Embedding Clustering Regularization. ICML 2023
-
-        Xiaobao Wu, Xinshuai Dong, Thong Thanh Nguyen, Anh Tuan Luu.
-    '''
     def __init__(self, weight_loss_XGR, sinkhorn_alpha, OT_max_iter=5000, stopThr=.5e-2):
         super().__init__()
 
@@ -18,15 +13,16 @@ class XGR(nn.Module):
         self.epsilon = 1e-16
 
     def forward(self, M, group):
-        # M: KxV
-        # a: Kx1
-        # b: Vx1
+        # M: KxV cost matrix
+        # sinkhorn alpha = 1/ entropic reg weight
+        # a: Kx1 source distribution
+        # b: Vx1 target distribution
         device = M.device
         group = group.to(device)
 
         # Sinkhorn's algorithm
-        a = (group.sum(axis=0)).unsqueeze(1).to(device)
-        b = (group.sum(axis=1)).unsqueeze(1).to(device)
+        a = (group.sum(axis=1)).unsqueeze(1).to(device)
+        b = (group.sum(axis=0)).unsqueeze(1).to(device)
 
         u = (torch.ones_like(a) / a.size()[0]).to(device) # Kx1
 
@@ -42,9 +38,12 @@ class XGR(nn.Module):
                 err = torch.norm(torch.sum(torch.abs(bb - b), dim=0), p=float('inf'))
 
         transp = u * (K * v.T)
+        transp = transp.clamp(min=1e-6)
 
-        loss_XGR = (torch.exp(group) * (group - transp - 1) \
-            + torch.exp(transp)).sum()
+        self.transp = transp
+
+        loss_XGR = (group * (group.log() - transp.log() - 1) \
+            + transp).sum()
         loss_XGR *= self.weight_loss_XGR
 
         return loss_XGR
