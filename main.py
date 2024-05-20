@@ -17,6 +17,7 @@ if __name__ == "__main__":
     config.add_model_argument(parser)
     config.add_logging_argument(parser)
     config.add_training_argument(parser)
+    config.add_eval_argument(parser)
     args = parser.parse_args()
     
     prj = args.wandb_prj if args.wandb_prj else 'topmost'
@@ -261,7 +262,7 @@ if __name__ == "__main__":
     # evaluate classification
     if read_labels:
         classification_results = topmost.evaluations.evaluate_classification(
-            train_theta, test_theta, dataset.train_labels, dataset.test_labels)
+            train_theta, test_theta, dataset.train_labels, dataset.test_labels, tune=args.tune_SVM)
         print(f"Accuracy: ", classification_results['acc'])
         wandb.log({"Accuracy": classification_results['acc']})
         logger.info(f"Accuracy: {classification_results['acc']}")

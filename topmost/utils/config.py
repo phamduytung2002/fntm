@@ -50,6 +50,9 @@ def add_training_argument(parser):
     parser.add_argument('--lr_step_size', type=int, default=125,
                         help='step size for learning rate scheduler')
 
+def add_eval_argument(parser):
+    parser.add_argument('--tune_SVM', action='store_true', default=False)
+
 
 def save_config(args, path):
     with open(path, 'w') as f:
