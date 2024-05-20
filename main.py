@@ -62,7 +62,8 @@ if __name__ == "__main__":
                                                       pretrained_WE=pretrainWE if args.use_pretrainWE else None,
                                                       weight_loss_ECR=args.weight_ECR,
                                                       alpha_ECR=args.alpha_ECR,
-                                                      weight_loss_MMI=args.weight_MMI)
+                                                      weight_loss_MMI=args.weight_MMI,
+                                                      beta_temp=args.beta_temp)
     elif args.model == 'XTMv2':
         model = topmost.models.MODEL_DICT[args.model](vocab_size=dataset.vocab_size,
                                                       num_topics=args.num_topics,
@@ -72,7 +73,8 @@ if __name__ == "__main__":
                                                       weight_loss_XGR=args.weight_XGR,
                                                       weight_loss_ECR=args.weight_ECR,
                                                       alpha_ECR=args.alpha_ECR,
-                                                      alpha_XGR=args.alpha_XGR)
+                                                      alpha_XGR=args.alpha_XGR,
+                                                      beta_temp=args.beta_temp)
     elif args.model == 'XTMv3':
         model = topmost.models.MODEL_DICT[args.model](vocab_size=dataset.vocab_size,
                                                       num_topics=args.num_topics,
@@ -85,7 +87,8 @@ if __name__ == "__main__":
                                                       alpha_XGR=args.alpha_XGR,
                                                       gating_func=args.gating_func,
                                                       weight_global_expert=args.weight_global_expert,
-                                                      weight_local_expert=args.weight_local_expert)
+                                                      weight_local_expert=args.weight_local_expert,
+                                                      beta_temp=args.beta_temp)
     elif args.model == 'XTMv4':
         model = topmost.models.MODEL_DICT[args.model](vocab_size=dataset.vocab_size,
                                                       num_topics=args.num_topics,
@@ -99,7 +102,8 @@ if __name__ == "__main__":
                                                       gating_func=args.gating_func,
                                                       weight_global_expert=args.weight_global_expert,
                                                       weight_local_expert=args.weight_local_expert,
-                                                      k=args.k)
+                                                      k=args.k,
+                                                      beta_temp=args.beta_temp)
     elif args.model == 'XTM':
         model = topmost.models.MODEL_DICT[args.model](vocab_size=dataset.vocab_size,
                                                       num_topics=args.num_topics,
@@ -109,7 +113,8 @@ if __name__ == "__main__":
                                                       weight_loss_XGR=args.weight_XGR,
                                                       weight_loss_ECR=args.weight_ECR,
                                                       alpha_ECR=args.alpha_ECR,
-                                                      alpha_XGR=args.alpha_XGR)
+                                                      alpha_XGR=args.alpha_XGR,
+                                                      beta_temp=args.beta_temp)
     elif args.model == 'ZTM':
         model = topmost.models.MODEL_DICT[args.model](vocab_size=dataset.vocab_size,
                                                       num_topics=args.num_topics,
@@ -120,14 +125,16 @@ if __name__ == "__main__":
                                                       weight_loss_ECR=args.weight_ECR,
                                                       alpha_ECR=args.alpha_ECR,
                                                       alpha_XGR=args.alpha_XGR,
-                                                      weight_loss_MMI=args.weight_MMI)
+                                                      weight_loss_MMI=args.weight_MMI,
+                                                      beta_temp=args.beta_temp)
     elif args.model == 'ECRTM':
         model = topmost.models.MODEL_DICT[args.model](vocab_size=dataset.vocab_size,
                                                       num_topics=args.num_topics,
                                                       dropout=args.dropout,
                                                       pretrained_WE=pretrainWE if args.use_pretrainWE else None,
                                                       weight_loss_ECR=args.weight_ECR,
-                                                      alpha_ECR=args.alpha_ECR)
+                                                      alpha_ECR=args.alpha_ECR,
+                                                      beta_temp=args.beta_temp)
     elif args.model == 'CombinedTM':
         model = topmost.models.MODEL_DICT[args.model](vocab_size=dataset.vocab_size,
                                                       num_topics=args.num_topics,

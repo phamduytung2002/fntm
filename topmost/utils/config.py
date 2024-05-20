@@ -32,6 +32,7 @@ def add_model_argument(parser):
     parser.add_argument('--weight_global_expert', type=float, default=250.)
     parser.add_argument('--weight_local_expert', type=float, default=250.)
     parser.add_argument('--k', help='top k expert', type=int, default=1)
+    parser.add_argument('--beta_temp', type=float, default=0.2)
 
 
 def add_training_argument(parser):
