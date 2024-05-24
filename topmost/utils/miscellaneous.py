@@ -3,6 +3,7 @@ import numpy as np
 import os
 from sklearn.manifold import TSNE
 import matplotlib.pyplot as plt
+import wandb
 
 
 def get_current_datetime():
@@ -41,6 +42,7 @@ def tsne_viz(word_embedding, topic_embedding, save_path, viz_group=False):
     plt.title('Word and Topic Embeddings')
     plt.savefig(save_path)
     plt.close()
+    wandb.log({"Word and Topic Embedding": wandb.Image(save_path)})
 
 
 def tsne_group_viz(word_embedding, topic_embedding, group_embeddings, save_path_1, save_path_2, viz_group=False):
