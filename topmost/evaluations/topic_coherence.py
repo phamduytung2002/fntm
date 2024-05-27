@@ -2,6 +2,7 @@ from gensim.corpora import Dictionary
 from gensim.models import CoherenceModel
 import numpy as np
 from tqdm import tqdm
+from itertools import combinations
 from ..data.file_utils import split_text_word
 import os
 
@@ -20,7 +21,7 @@ def compute_topic_coherence(reference_corpus, vocab, top_words, cv_type='c_v'):
     cv_per_topic = cm.get_coherence_per_topic()
     score = np.mean(cv_per_topic)
 
-    return score
+    return cv_per_topic, score
 
 
 def compute_dynamic_TC(train_texts, train_times, vocab, top_words_list, cv_type='c_v'):
@@ -42,9 +43,9 @@ def compute_dynamic_TC(train_texts, train_times, vocab, top_words_list, cv_type=
     return np.mean(cv_score_list)
 
 
-def C_V_on_wikipedia(top_word_path, cv_type='C_V'):
+def TC_on_wikipedia(top_word_path, cv_type='C_V'):
     """
-    Compute the C_V score on the Wikipedia dataset
+    Compute the TC score on the Wikipedia dataset
     """
     try:
         jar_dir = os.path.join("topmost", "evaluations")
@@ -72,3 +73,14 @@ def C_V_on_wikipedia(top_word_path, cv_type='C_V'):
                     cv_score.append(float(line.strip().split()[1]))
         os.remove(f"tmp{random_number}.txt")
         return cv_score, sum(cv_score) / len(cv_score)
+
+def get_average_word2vec_similarity(topic_word_list, model):
+    similarity_list = []
+    missing_word_count = 0
+    for topic, word_list in enumerate(topic_word_list):
+        word_list_filtered = [word for word in word_list if model.has_index_for(word)]
+        missing_word_count += len(word_list) - len(word_list_filtered)
+        for word1, word2 in combinations(word_list_filtered, 2):
+            similarity = model.similarity(word1, word2)
+            similarity_list.append(similarity)
+    return sum(similarity_list) / len(similarity_list)

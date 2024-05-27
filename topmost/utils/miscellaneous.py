@@ -24,7 +24,7 @@ def create_folder_if_not_exist(folder_path):
         print("Folder already exists:", folder_path)
 
 
-def tsne_viz(word_embedding, topic_embedding, save_path, viz_group=False):
+def tsne_viz(word_embedding, topic_embedding, save_path, viz_group=False, wandb=False):
     tsne = TSNE(n_components=2, random_state=0,
                 perplexity=5 if viz_group else 30)
     word_c = np.ones(word_embedding.shape[0])
@@ -42,7 +42,8 @@ def tsne_viz(word_embedding, topic_embedding, save_path, viz_group=False):
     plt.title('Word and Topic Embeddings')
     plt.savefig(save_path)
     plt.close()
-    wandb.log({"Word and Topic Embedding": wandb.Image(save_path)})
+    if wandb:
+        wandb.log({"Word and Topic Embedding": wandb.Image(save_path)})
 
 
 def tsne_group_viz(word_embedding, topic_embedding, group_embeddings, save_path_1, save_path_2, viz_group=False):
