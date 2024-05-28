@@ -56,6 +56,7 @@ alone
 along
 already
 also
+alt
 alternative
 although
 always
@@ -120,6 +121,7 @@ association
 assume
 assuming
 assumption
+atheism
 atheist
 attack
 attempt
@@ -151,11 +153,11 @@ based
 basic
 basically
 basis
+bat
 batf
 battery
 battle
 bay
-bb
 bear
 beat
 became
@@ -184,6 +186,7 @@ biggest
 bike
 bill
 billion
+binary
 bios
 bit
 black
@@ -257,12 +260,10 @@ carry
 carrying
 case
 catch
-category
 catholic
 caught
 cause
 caused
-causing
 cell
 center
 central
@@ -321,6 +322,7 @@ cold
 collection
 college
 color
+com
 combination
 come
 coming
@@ -332,6 +334,7 @@ committee
 common
 communication
 community
+comp
 company
 compare
 compared
@@ -344,6 +347,7 @@ component
 compound
 compression
 computer
+computing
 concept
 concern
 concerned
@@ -434,7 +438,6 @@ date
 dave
 david
 day
-de
 dead
 deal
 dealer
@@ -443,7 +446,6 @@ dear
 death
 debate
 dec
-decade
 decent
 decide
 decided
@@ -505,12 +507,13 @@ distance
 distributed
 distribution
 division
-do
+doc
 doctor
 doctrine
 document
 documentation
 dod
+doe
 doesnt
 dog
 dollar
@@ -544,6 +547,7 @@ economic
 edge
 edition
 editor
+edu
 education
 effect
 effective
@@ -619,6 +623,7 @@ expert
 explain
 explained
 explanation
+export
 extended
 extension
 external
@@ -656,7 +661,6 @@ feature
 fed
 federal
 fee
-feed
 feel
 feeling
 fellow
@@ -700,7 +704,6 @@ force
 forced
 foreign
 forget
-forgot
 form
 format
 former
@@ -749,7 +752,6 @@ give
 given
 giving
 glad
-go
 goal
 god
 going
@@ -789,7 +791,6 @@ hardware
 hasnt
 hate
 havent
-he
 head
 header
 health
@@ -807,7 +808,6 @@ help
 helped
 helpful
 hence
-here
 hey
 high
 higher
@@ -826,7 +826,6 @@ holy
 home
 homosexual
 honest
-hook
 hope
 hopefully
 hoping
@@ -963,7 +962,6 @@ latest
 latter
 launch
 law
-le
 lead
 leader
 leading
@@ -1060,6 +1058,7 @@ massacre
 master
 match
 material
+math
 matter
 max
 maximum
@@ -1103,6 +1102,8 @@ minor
 minority
 minute
 mirror
+misc
+miss
 missed
 missing
 mission
@@ -1274,6 +1275,7 @@ personally
 peter
 phone
 phrase
+physic
 physical
 pick
 picked
@@ -1307,6 +1309,7 @@ pointer
 police
 policy
 political
+politics
 poor
 pop
 popular
@@ -1429,6 +1432,7 @@ really
 rear
 reason
 reasonable
+rec
 recall
 receive
 received
@@ -1479,7 +1483,6 @@ required
 requirement
 requires
 research
-resistance
 resolution
 resource
 respect
@@ -1533,6 +1536,7 @@ saying
 scale
 scheme
 school
+sci
 science
 scientific
 scientist
@@ -1589,7 +1593,6 @@ shall
 shape
 share
 shareware
-sheet
 shell
 shift
 shipping
@@ -1704,6 +1707,7 @@ straight
 strange
 street
 strike
+string
 strong
 strongly
 structure
@@ -1716,6 +1720,7 @@ style
 subject
 success
 successful
+suddenly
 suffering
 sufficient
 suggest
@@ -1782,7 +1787,6 @@ thanks
 thanx
 thats
 theory
-there
 therefore
 theyll
 theyre
@@ -1832,7 +1836,6 @@ translation
 transmission
 treat
 treatment
-tree
 trial
 trick
 tried
@@ -1872,7 +1875,6 @@ unlikely
 update
 upgrade
 upon
-us
 usa
 use
 used
@@ -1901,7 +1903,6 @@ view
 village
 violation
 violence
-violent
 virtual
 visible
 vision
@@ -1929,7 +1930,6 @@ wave
 way
 weak
 weapon
-wed
 week
 weight
 welcome
@@ -1945,7 +1945,6 @@ wheel
 whenever
 whether
 white
-who
 whole
 whose
 wide
@@ -1997,4 +1996,5 @@ young
 youre
 youve
 zero
+zip
 zone
