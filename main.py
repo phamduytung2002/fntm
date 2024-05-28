@@ -205,7 +205,7 @@ if __name__ == "__main__":
         trainer.save_embeddings(current_run_dir)
         miscellaneous.tsne_viz(model.word_embeddings.detach().cpu().numpy(),
                                model.topic_embeddings.detach().cpu().numpy(),
-                               os.path.join(current_run_dir, 'tsne.png'), wandb=True)
+                               os.path.join(current_run_dir, 'tsne.png'), logwandb=True)
 
     if args.model in ['XTMv4']:
         # try:
