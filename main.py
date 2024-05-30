@@ -140,6 +140,24 @@ if __name__ == "__main__":
                                                       num_topics=args.num_topics,
                                                       dropout=args.dropout,
                                                       contextual_embed_size=dataset.contextual_embed_size)
+    elif args.model == 'TraCo':
+        model = topmost.models.MODEL_DICT[args.model](vocab_size=dataset.vocab_size,
+                                                      num_topics_list=[args.num_groups, args.num_topics],
+                                                      pretrained_WE=pretrainWE if args.use_pretrainWE else None,
+                                                      dropout=args.dropout,
+                                                      beta_temp=args.beta_temp,
+                                                      weight_loss_TPD=args.weight_TPD, 
+                                                      sinkhorn_alpha=args.alpha_TPD)
+    elif args.model == 'TraCoECR':
+        model = topmost.models.MODEL_DICT[args.model](vocab_size=dataset.vocab_size,
+                                                      num_topics_list=[args.num_groups, args.num_topics],
+                                                      pretrained_WE=pretrainWE if args.use_pretrainWE else None,
+                                                      dropout=args.dropout,
+                                                      beta_temp=args.beta_temp,
+                                                      weight_loss_TPD=args.weight_TPD, 
+                                                      sinkhorn_alpha=args.alpha_TPD,
+                                                      weight_loss_ECR=args.weight_ECR, 
+                                                      alpha_ECR=args.alpha_ECR)
     else:
         model = topmost.models.MODEL_DICT[args.model](vocab_size=dataset.vocab_size,
                                                       num_topics=args.num_topics,
@@ -167,11 +185,18 @@ if __name__ == "__main__":
     model = model.to(args.device)
 
     # create a trainer
-    trainer = topmost.trainers.BasicTrainer(model, epochs=args.epochs,
-                                            learning_rate=args.lr,
-                                            batch_size=args.batch_size,
-                                            lr_scheduler=args.lr_scheduler,
-                                            lr_step_size=args.lr_step_size)
+    if args.model in ['TraCo', 'TraCoECR']:
+        trainer = topmost.trainers.HierarchicalTrainer(model, epochs=args.epochs,
+                                                       learning_rate=args.lr,
+                                                       batch_size=args.batch_size,
+                                                       lr_scheduler=args.lr_scheduler,
+                                                       lr_step_size=args.lr_step_size)
+    else:
+        trainer = topmost.trainers.BasicTrainer(model, epochs=args.epochs,
+                                                learning_rate=args.lr,
+                                                batch_size=args.batch_size,
+                                                lr_scheduler=args.lr_scheduler,
+                                                lr_step_size=args.lr_step_size)
 
     # for _ in range(20):
 
@@ -206,6 +231,12 @@ if __name__ == "__main__":
         miscellaneous.tsne_viz(model.word_embeddings.detach().cpu().numpy(),
                                model.topic_embeddings.detach().cpu().numpy(),
                                os.path.join(current_run_dir, 'tsne.png'), logwandb=True)
+    elif args.model in ['TraCo', 'TraCoECR']:
+        trainer.save_embeddings(current_run_dir)
+        miscellaneous.tsne_viz(model.bottom_word_embeddings.detach().cpu().numpy(),
+                               model.topic_embeddings_list[-1].detach().cpu().numpy(),
+                               os.path.join(current_run_dir, 'tsne.png'), logwandb=True)
+        
 
     if args.model in ['XTMv4']:
         # try:
@@ -292,26 +323,26 @@ if __name__ == "__main__":
     logger.info(f"TC_15: {TC_15:.5f}")
     logger.info(f'TC_15 list: {TC_15_list}')
 
-    # NPMI
-    NPMI_train_10_list, NPMI_train_10 = topmost.evaluations.compute_topic_coherence(
-        dataset.train_texts, dataset.vocab, top_words_10, cv_type='c_npmi')
-    print(f"NPMI_train_10: {NPMI_train_10:.5f}, NPMI_train_10_list: {NPMI_train_10_list}")
-    wandb.log({"NPMI_train_10": NPMI_train_10})
-    logger.info(f"NPMI_train_10: {NPMI_train_10:.5f}")
-    logger.info(f'NPMI_train_10 list: {NPMI_train_10_list}')
+    # # NPMI
+    # NPMI_train_10_list, NPMI_train_10 = topmost.evaluations.compute_topic_coherence(
+    #     dataset.train_texts, dataset.vocab, top_words_10, cv_type='c_npmi')
+    # print(f"NPMI_train_10: {NPMI_train_10:.5f}, NPMI_train_10_list: {NPMI_train_10_list}")
+    # wandb.log({"NPMI_train_10": NPMI_train_10})
+    # logger.info(f"NPMI_train_10: {NPMI_train_10:.5f}")
+    # logger.info(f'NPMI_train_10 list: {NPMI_train_10_list}')
 
-    NPMI_wiki_10_list, NPMI_wiki_10 = topmost.evaluations.topic_coherence.TC_on_wikipedia(
-        os.path.join(current_run_dir, 'top_words_10.txt'), cv_type='NPMI')
-    print(f"NPMI_wiki_10: {NPMI_wiki_10:.5f}, NPMI_wiki_10_list: {NPMI_wiki_10_list}")
-    wandb.log({"NPMI_wiki_10": NPMI_wiki_10})
-    logger.info(f"NPMI_wiki_10: {NPMI_wiki_10:.5f}")
-    logger.info(f'NPMI_wiki_10 list: {NPMI_wiki_10_list}')
+    # NPMI_wiki_10_list, NPMI_wiki_10 = topmost.evaluations.topic_coherence.TC_on_wikipedia(
+    #     os.path.join(current_run_dir, 'top_words_10.txt'), cv_type='NPMI')
+    # print(f"NPMI_wiki_10: {NPMI_wiki_10:.5f}, NPMI_wiki_10_list: {NPMI_wiki_10_list}")
+    # wandb.log({"NPMI_wiki_10": NPMI_wiki_10})
+    # logger.info(f"NPMI_wiki_10: {NPMI_wiki_10:.5f}")
+    # logger.info(f'NPMI_wiki_10 list: {NPMI_wiki_10_list}')
 
-    Cp_wiki_10_list, Cp_wiki_10 = topmost.evaluations.topic_coherence.TC_on_wikipedia(
-        os.path.join(current_run_dir, 'top_words_10.txt'), cv_type='C_P')
-    print(f"Cp_wiki_10: {Cp_wiki_10:.5f}, Cp_wiki_10_list: {Cp_wiki_10_list}")
-    wandb.log({"Cp_wiki_10": Cp_wiki_10})
-    logger.info(f"Cp_wiki_10: {Cp_wiki_10:.5f}")
-    logger.info(f'Cp_wiki_10 list: {Cp_wiki_10_list}')
+    # Cp_wiki_10_list, Cp_wiki_10 = topmost.evaluations.topic_coherence.TC_on_wikipedia(
+    #     os.path.join(current_run_dir, 'top_words_10.txt'), cv_type='C_P')
+    # print(f"Cp_wiki_10: {Cp_wiki_10:.5f}, Cp_wiki_10_list: {Cp_wiki_10_list}")
+    # wandb.log({"Cp_wiki_10": Cp_wiki_10})
+    # logger.info(f"Cp_wiki_10: {Cp_wiki_10:.5f}")
+    # logger.info(f'Cp_wiki_10 list: {Cp_wiki_10_list}')
 
     wandb.finish()

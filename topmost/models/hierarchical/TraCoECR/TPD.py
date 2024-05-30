@@ -29,6 +29,7 @@ class TPD(nn.Module):
 
         all_loss_TPD *= weight_loss_TPD / (num_layers - 1)
 
+
         return all_loss_TPD, transp_list
 
     def sinkhorn(self, M, return_transp=False):

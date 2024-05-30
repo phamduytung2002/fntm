@@ -4,6 +4,10 @@ from torch.optim.lr_scheduler import StepLR
 from collections import defaultdict
 from tqdm import tqdm
 from topmost.utils import static_utils
+import os
+import scipy
+import wandb
+import logging
 
 
 # transform tensor list to numpy list
@@ -20,6 +24,8 @@ class HierarchicalTrainer:
         self.lr_scheduler = lr_scheduler
         self.lr_step_size = lr_step_size
         self.log_interval = log_interval
+
+        self.logger = logging.getLogger('main')
 
     def make_optimizer(self,):
         args_dict = {
@@ -53,6 +59,7 @@ class HierarchicalTrainer:
         for epoch in tqdm(range(1, self.epochs + 1), leave=False):
             self.model.train()
             loss_rst_dict = defaultdict(float)
+            wandb.log({'epoch': epoch})
 
             for batch_data in dataset_handler.train_dataloader:
 
@@ -65,6 +72,9 @@ class HierarchicalTrainer:
 
                 for key in rst_dict:
                     loss_rst_dict[key] += rst_dict[key] * len(batch_data)
+
+            for key in loss_rst_dict:
+                wandb.log({key: loss_rst_dict[key] / data_size})
 
             if self.lr_scheduler:
                 lr_scheduler.step()
@@ -95,33 +105,85 @@ class HierarchicalTrainer:
         theta = np.empty(len(num_topics_list), object)
         theta[:] = [np.asarray(item) for item in theta_list]
 
-        return theta
+        return np.asarray(theta[-1])
 
     def export_phi(self):
         phi = to_nparray(self.model.get_phi_list())
         return phi
 
     def export_beta(self):
-        beta_list = to_nparray(self.model.get_beta())
+        beta_list = to_nparray(self.model.get_beta()[-1])
         return beta_list
 
     def export_top_words(self, vocab, num_top_words=15, annotation=False):
         beta = self.export_beta()
-        top_words_list = list()
+        # top_words_list = list()
 
-        for layer in range(beta.shape[0]):
-            print(f"======= Layer: {layer} number of topics: {beta[layer].shape[0]} =======")
-            top_words = static_utils.print_topic_words(beta[layer], vocab, num_top_words=num_top_words)
+        # for layer in range(beta.shape[0]):
+        # print(f"======= Layer: {layer} number of topics: {beta[layer].shape[0]} =======")
+        top_words = static_utils.print_topic_words(beta, vocab, num_top_words=num_top_words)
 
-            if not annotation:
-                top_words_list.append(top_words)
-            else:
-                top_words_list.extend([f'L-{layer}_K-{k} {item}' for k, item in enumerate(top_words)])
+        # if not annotation:
+        #     top_words_list.append(top_words)
+        # else:
+        #     pass
+        #     top_words_list.extend([f'L-{layer}_K-{k} {item}' for k, item in enumerate(top_words)])
 
-        return top_words_list
+        return top_words
 
     def export_theta(self, dataset_handler):
         train_theta = self.test(dataset_handler.train_data)
         test_theta = self.test(dataset_handler.test_data)
 
         return train_theta, test_theta
+
+    def save_beta(self, dir_path):
+        beta = self.export_beta()
+        np.save(os.path.join(dir_path, 'beta.npy'), beta)
+        return beta
+
+    def save_top_words(self, vocab, num_top_words, dir_path):
+        top_words = self.export_top_words(vocab, num_top_words)
+        with open(os.path.join(dir_path, f'top_words_{num_top_words}.txt'), 'w') as f:
+            for i, words in enumerate(top_words):
+                f.write(words + '\n')
+        return top_words
+
+    def save_theta(self, dataset_handler, dir_path):
+        train_theta, test_theta = self.export_theta(dataset_handler)
+        np.save(os.path.join(dir_path, 'train_theta.npy'), train_theta)
+        np.save(os.path.join(dir_path, 'test_theta.npy'), test_theta)
+        
+        train_argmax_theta = np.argmax(train_theta, axis=1)
+        test_argmax_theta = np.argmax(test_theta, axis=1)
+        np.save(os.path.join(dir_path, 'train_argmax_theta.npy'), train_argmax_theta)
+        np.save(os.path.join(dir_path, 'test_argmax_theta.npy'), test_argmax_theta)
+        return train_theta, test_theta
+
+    def save_embeddings(self, dir_path):
+        if hasattr(self.model, 'bottom_word_embeddings'):
+            word_embeddings = self.model.bottom_word_embeddings.detach().cpu().numpy()
+            np.save(os.path.join(dir_path, 'word_embeddings.npy'), word_embeddings)
+            self.logger.info(f'word_embeddings size: {word_embeddings.shape}')
+
+        if hasattr(self.model, 'topic_embeddings_list'):
+            topic_embeddings = self.model.topic_embeddings_list[-1].detach().cpu().numpy()
+            np.save(os.path.join(dir_path, 'topic_embeddings.npy'),
+                    topic_embeddings)
+            self.logger.info(
+                f'topic_embeddings size: {topic_embeddings.shape}')
+
+            topic_dist = scipy.spatial.distance.cdist(topic_embeddings, topic_embeddings)
+            np.save(os.path.join(dir_path, 'topic_dist.npy'), topic_dist)
+
+        if hasattr(self.model, 'topic_embeddings_list'):
+            group_embeddings = self.model.topic_embeddings_list[-2].detach().cpu().numpy()
+            np.save(os.path.join(dir_path, 'group_embeddings.npy'),
+                    group_embeddings)
+            self.logger.info(
+                f'group_embeddings size: {group_embeddings.shape}')
+
+            group_dist = scipy.spatial.distance.cdist(group_embeddings, group_embeddings)
+            np.save(os.path.join(dir_path, 'group_dist.npy'), group_dist)
+
+        return word_embeddings, topic_embeddings

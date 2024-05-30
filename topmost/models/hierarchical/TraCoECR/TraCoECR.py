@@ -3,19 +3,23 @@ from torch import nn
 import torch.nn.functional as F
 from .TPD import TPD
 from .CDDecoder import CDDecoder
+from .ECR import ECR
 from topmost.models.Encoder import MLPEncoder
 from . import utils
 
 
 
-class TraCo(nn.Module):
+class TraCoECR(nn.Module):
     '''
         On the Affinity, Rationality, and Diversity of Hierarchical Topic Modeling. AAAI 2024
 
         Xiaobao Wu, Fengjun Pan, Thong Nguyen, Yichao Feng, Chaoqun Liu, Cong-Duy Nguyen, Anh Tuan Luu.
     '''
 
-    def __init__(self, vocab_size, num_topics_list=[20, 50], pretrained_WE=None, en_units=200, dropout=0., embed_size=200, bias_topk=20, bias_p=5.0, beta_temp=0.1, weight_loss_TPD=20.0, sinkhorn_alpha=20.0, sinkhorn_max_iter=1000):
+    def __init__(self, vocab_size, num_topics_list=[20, 50], pretrained_WE=None, \
+            en_units=200, dropout=0., embed_size=200, bias_topk=20, bias_p=5.0, \
+            weight_loss_ECR=250., alpha_ECR=20.,
+            beta_temp=0.1, weight_loss_TPD=20.0, sinkhorn_alpha=20.0, sinkhorn_max_iter=1000):
         super().__init__()
 
         self.num_topics_list = num_topics_list
@@ -43,6 +47,7 @@ class TraCo(nn.Module):
 
         self.TPD = TPD(sinkhorn_alpha, sinkhorn_max_iter)
         self.CDDecoder = CDDecoder(self.num_layers, vocab_size, bias_p, bias_topk)
+        self.ECR = ECR(weight_loss_ECR, alpha_ECR, sinkhorn_max_iter)
         self.encoder = MLPEncoder(vocab_size, num_topics_list[-1], en_units, dropout)
 
         _, self.transp_list = self.TPD(self.topic_embeddings_list)
@@ -83,6 +88,12 @@ class TraCo(nn.Module):
         else:
             return theta_list
 
+    def get_loss_ECR(self):
+        cost = utils.pairwise_euclidean_distance(
+            self.topic_embeddings_list[-1], self.bottom_word_embeddings)
+        loss_ECR = self.ECR(cost)
+        return loss_ECR
+
     def forward(self, input, epoch_id=None):
         input_bow = input['data']
         loss = 0.
@@ -95,6 +106,9 @@ class TraCo(nn.Module):
         loss_KL = loss_KL.mean()
         loss += loss_KL
 
+        loss_ECR = self.get_loss_ECR()
+        loss += loss_ECR
+
         beta_list = self.get_beta()
 
         recon_loss = self.CDDecoder(input_bow, theta_list, beta_list)
@@ -104,7 +118,8 @@ class TraCo(nn.Module):
             'loss': loss,
             'loss_TPD': loss_TPD,
             'loss_KL': loss_KL,
-            'recon_loss': recon_loss
+            'recon_loss': recon_loss,
+            'loss_ECR': loss_ECR
         }
 
         return rst_dict

@@ -28,6 +28,8 @@ def add_model_argument(parser):
     parser.add_argument('--alpha_ECR', type=float, default=20.)
     parser.add_argument('--alpha_XGR', type=float, default=5.)
     parser.add_argument('--weight_MMI', type=float, default=100.)
+    parser.add_argument('--weight_TPD', type=float, default=20.)
+    parser.add_argument('--alpha_TPD', type=float, default=20.)
     parser.add_argument('--gating_func', type=str, default='dot_bias')
     parser.add_argument('--weight_global_expert', type=float, default=250.)
     parser.add_argument('--weight_local_expert', type=float, default=250.)
