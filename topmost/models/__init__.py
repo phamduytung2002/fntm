@@ -20,6 +20,7 @@ from .dynamic.DETM import DETM
 from .hierarchical.SawETM.SawETM import SawETM
 from .hierarchical.HyperMiner.HyperMiner import HyperMiner
 from .hierarchical.TraCo.TraCo import TraCo
+from .hierarchical.TraCoECR.TraCoECR import TraCoECR
 
 MODEL_DICT = {
     "ProdLDA": ProdLDA,
@@ -35,6 +36,7 @@ MODEL_DICT = {
     "SawETM": SawETM,
     "HyperMiner": HyperMiner,
     "TraCo": TraCo,
+    "TraCoECR": TraCoECR,
     "XTM": XTM,
     "XTMv2": XTMv2,
     "XTMv3": XTMv3,
