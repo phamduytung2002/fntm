@@ -110,8 +110,11 @@ class ZTM(nn.Module):
                     self.group_connection_regularizer[i][j] = 1
         self.group_connection_regularizer.fill_diagonal_(0)
         self.group_connection_regularizer = self.group_connection_regularizer.clamp(min=1e-4)
-        self.group_connection_regularizer = self.group_connection_regularizer / \
-            self.group_connection_regularizer.sum()
+        for _ in range(50):
+            self.group_connection_regularizer = self.group_connection_regularizer / \
+                self.group_connection_regularizer.sum(axis=1, keepdim=True)
+            self.group_connection_regularizer = (self.group_connection_regularizer / \
+                + self.group_connection_regularizer.T) / 2.
 
         logger = logging.getLogger('main')
         logger.info('groups:')
