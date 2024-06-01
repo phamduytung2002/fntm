@@ -113,15 +113,16 @@ class ZTM(nn.Module):
         for _ in range(50):
             self.group_connection_regularizer = self.group_connection_regularizer / \
                 self.group_connection_regularizer.sum(axis=1, keepdim=True)
-            self.group_connection_regularizer = (self.group_connection_regularizer / \
+            self.group_connection_regularizer = (self.group_connection_regularizer \
                 + self.group_connection_regularizer.T) / 2.
 
-        logger = logging.getLogger('main')
-        logger.info('groups:')
+        self.logger.info('groups:')
         for i in range(self.num_groups):
-            logger.info(f'group {i}: {self.group_topic[i]}')
-        logger.info('group_connection_reg')
-        logger.info(group_id)
+            self.logger.info(f'group {i}: {self.group_topic[i]}')
+        self.logger.info('group_connection_reg')
+        self.logger.info(group_id)
+        self.logger.info('group connection reg: ')
+        self.logger.info(self.group_connection_regularizer)
 
     def get_beta(self):
         dist = self.pairwise_euclidean_distance(
