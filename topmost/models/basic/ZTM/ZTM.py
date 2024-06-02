@@ -123,6 +123,15 @@ class ZTM(nn.Module):
         self.logger.info(group_id)
         self.logger.info('group connection reg: ')
         self.logger.info(self.group_connection_regularizer)
+        
+
+        print('groups:')
+        for i in range(self.num_groups):
+            print(f'group {i}: {self.group_topic[i]}')
+        print('group_connection_reg')
+        print(group_id)
+        print('group connection reg: ')
+        print(self.group_connection_regularizer)
 
     def get_beta(self):
         dist = self.pairwise_euclidean_distance(
