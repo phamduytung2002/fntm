@@ -148,8 +148,8 @@ class ZTM(nn.Module):
             return mu
 
     def get_representation(self, input):
-        e1 = F.relu(self.fc11(input))
-        e1 = F.relu(self.fc12(e1))
+        e1 = F.softplus(self.fc11(input))
+        e1 = F.softplus(self.fc12(e1))
         e1 = self.fc1_dropout(e1)
         mu = self.mean_bn(self.fc21(e1))
         logvar = self.logvar_bn(self.fc22(e1))
@@ -227,7 +227,7 @@ class ZTM(nn.Module):
         rep, mu, logvar = self.get_representation(bow)
         loss_KL = self.compute_loss_KL(mu, logvar)
         theta = rep
-
+        # theta, loss_KL = self.encode(bow)
         beta = self.get_beta()
 
         recon = F.softmax(self.decoder_bn(torch.matmul(theta, beta)), dim=-1)
