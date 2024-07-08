@@ -10,12 +10,6 @@ import sentence_transformers
 
 
 class ZTM(nn.Module):
-    '''
-        Effective Neural Topic Modeling with Embedding Clustering Regularization. ICML 2023
-
-        Xiaobao Wu, Xinshuai Dong, Thong Thanh Nguyen, Anh Tuan Luu.
-    '''
-
     def __init__(self, vocab_size, num_topics=50, num_groups=10, en_units=200, dropout=0.,
                  pretrained_WE=None, embed_size=200, beta_temp=0.2,
                  weight_loss_ECR=250.0, weight_loss_XGR=250.0,
@@ -112,7 +106,7 @@ class ZTM(nn.Module):
         self.group_connection_regularizer = self.group_connection_regularizer.clamp(min=1e-4)
         for _ in range(50):
             self.group_connection_regularizer = self.group_connection_regularizer / \
-                self.group_connection_regularizer.sum(axis=1, keepdim=True)
+                self.group_connection_regularizer.sum(axis=1, keepdim=True) / self.num_topics
             self.group_connection_regularizer = (self.group_connection_regularizer \
                 + self.group_connection_regularizer.T) / 2.
 
@@ -188,8 +182,11 @@ class ZTM(nn.Module):
         return -csim_matrix.log()
 
     def compute_loss_MMI(self, rep, contextual_emb):
-        sim_matrix = self.csim(rep, contextual_emb)
-        return sim_matrix.diag().mean() * self.weight_loss_MMI
+        if self.weight_loss_MMI <= 1e-6:
+            return 0.
+        else:
+            sim_matrix = self.csim(rep, contextual_emb)
+            return sim_matrix.diag().mean() * self.weight_loss_MMI
 
     def compute_loss_KL(self, mu, logvar):
         var = logvar.exp()
@@ -211,7 +208,7 @@ class ZTM(nn.Module):
 
     def get_loss_XGR(self):
         cost = self.pairwise_euclidean_distance(
-            self.topic_embeddings, self.topic_embeddings)
+            self.topic_embeddings, self.topic_embeddings) + 1e1 * torch.ones(self.num_topics, self.num_topics).cuda()
         loss_XGR = self.XGR(cost, self.group_connection_regularizer)
         return loss_XGR
 

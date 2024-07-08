@@ -9,6 +9,7 @@ docs/build/
 data/*
 datasets/
 results/
+clusteringres/
 wandb/
 
 train/

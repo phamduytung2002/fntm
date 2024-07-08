@@ -42,7 +42,7 @@ if __name__ == "__main__":
         read_labels = False
 
     # load a preprocessed dataset
-    if args.model in ['YTM', 'ZTM', 'CombinedTM']:
+    if args.model in ['YTM', 'ZTM', 'CombinedTM', 'OTClusterTM']:
         dataset = topmost.data.BasicDatasetHandler(
             os.path.join(DATA_DIR, args.dataset), device=args.device, read_labels=read_labels,
             as_tensor=True, contextual_embed=True)
@@ -135,6 +135,16 @@ if __name__ == "__main__":
                                                       weight_loss_ECR=args.weight_ECR,
                                                       alpha_ECR=args.alpha_ECR,
                                                       beta_temp=args.beta_temp)
+    elif args.model == 'OTClusterTM':
+        model = topmost.models.MODEL_DICT[args.model](vocab_size=dataset.vocab_size,
+                                                      doc_embedding=dataset.train_contextual_embed,
+                                                      num_topics=args.num_topics,
+                                                      num_groups=args.num_groups,
+                                                      dropout=args.dropout,
+                                                      pretrained_WE=pretrainWE if args.use_pretrainWE else None,
+                                                      weight_loss_ECR=args.weight_ECR,
+                                                      alpha_ECR=args.alpha_ECR,
+                                                      beta_temp=args.beta_temp)
     elif args.model == 'CombinedTM':
         model = topmost.models.MODEL_DICT[args.model](vocab_size=dataset.vocab_size,
                                                       num_topics=args.num_topics,
@@ -165,22 +175,25 @@ if __name__ == "__main__":
     if args.model == 'YTM':
         model.weight_loss_XGR = args.weight_XGR
         model.weight_loss_ECR = args.weight_ECR
-    if args.model == 'XTMv2':
+    elif args.model == 'XTMv2':
         model.weight_loss_XGR = args.weight_XGR
         model.weight_loss_ECR = args.weight_ECR
-    if args.model == 'XTMv3':
+    elif args.model == 'XTMv3':
         model.weight_loss_XGR = args.weight_XGR
         model.weight_loss_ECR = args.weight_ECR
-    if args.model == 'XTMv4':
+    elif args.model == 'XTMv4':
         model.weight_loss_XGR = args.weight_XGR
         model.weight_loss_ECR = args.weight_ECR
-    if args.model == 'XTM':
+    elif args.model == 'XTM':
         model.weight_loss_XGR = args.weight_XGR
         model.weight_loss_ECR = args.weight_ECR
-    if args.model == 'ZTM':
+    elif args.model == 'ZTM':
         model.weight_loss_XGR = args.weight_XGR
         model.weight_loss_ECR = args.weight_ECR
-    if args.model == 'ECRTM':
+    elif args.model == 'OTClusterTM':
+        model.weight_loss_XGR = args.weight_XGR
+        model.weight_loss_ECR = args.weight_ECR
+    elif args.model == 'ECRTM':
         model.weight_loss_ECR = args.weight_ECR
     model = model.to(args.device)
 
@@ -202,6 +215,8 @@ if __name__ == "__main__":
 
     # train the model
     trainer.train(dataset)
+    
+    torch.save(trainer.model.state_dict(), os.path.join(current_run_dir, 'checkpoint.pt'))
 
     # save beta, theta and top words
     beta = trainer.save_beta(current_run_dir)
@@ -226,7 +241,7 @@ if __name__ == "__main__":
     logger.info(f'test theta argmax: {unique_elements, counts}')
 
     # save word embeddings and topic embeddings
-    if args.model in ['ETM', 'ECRTM', 'XTM', 'XTMv2', 'YTM', 'XTMv3', 'ZTM']:
+    if args.model in ['ETM', 'ECRTM', 'XTM', 'XTMv2', 'YTM', 'XTMv3', 'ZTM', 'OTClusterTM']:
         trainer.save_embeddings(current_run_dir)
         miscellaneous.tsne_viz(model.word_embeddings.detach().cpu().numpy(),
                                model.topic_embeddings.detach().cpu().numpy(),
@@ -309,13 +324,6 @@ if __name__ == "__main__":
         logger.info(f"Macro-f1: {classification_results['macro-F1']}")
 
     # TC
-    # TC_10_list, TC_10 = topmost.evaluations.topic_coherence.C_V_on_wikipedia(
-    #     os.path.join(current_run_dir, 'top_words_10.txt'))
-    # print(f"TC_10: {TC_10:.5f}")
-    # wandb.log({"TC_10": TC_10})
-    # logger.info(f"TC_10: {TC_10:.5f}")
-    # logger.info(f'TC_10 list: {TC_10_list}')
-
     TC_15_list, TC_15 = topmost.evaluations.topic_coherence.TC_on_wikipedia(
         os.path.join(current_run_dir, 'top_words_15.txt'))
     print(f"TC_15: {TC_15:.5f}")
@@ -323,27 +331,34 @@ if __name__ == "__main__":
     logger.info(f"TC_15: {TC_15:.5f}")
     logger.info(f'TC_15 list: {TC_15_list}')
 
+    TC_10_list, TC_10 = topmost.evaluations.topic_coherence.TC_on_wikipedia(
+        os.path.join(current_run_dir, 'top_words_10.txt'))
+    print(f"TC_10: {TC_10:.5f}")
+    wandb.log({"TC_10": TC_10})
+    logger.info(f"TC_10: {TC_10:.5f}")
+    logger.info(f'TC_10 list: {TC_10_list}')
+
     # # NPMI
-    # NPMI_train_10_list, NPMI_train_10 = topmost.evaluations.compute_topic_coherence(
-    #     dataset.train_texts, dataset.vocab, top_words_10, cv_type='c_npmi')
-    # print(f"NPMI_train_10: {NPMI_train_10:.5f}, NPMI_train_10_list: {NPMI_train_10_list}")
-    # wandb.log({"NPMI_train_10": NPMI_train_10})
-    # logger.info(f"NPMI_train_10: {NPMI_train_10:.5f}")
-    # logger.info(f'NPMI_train_10 list: {NPMI_train_10_list}')
+    NPMI_train_10_list, NPMI_train_10 = topmost.evaluations.compute_topic_coherence(
+        dataset.train_texts, dataset.vocab, top_words_10, cv_type='c_npmi')
+    print(f"NPMI_train_10: {NPMI_train_10:.5f}, NPMI_train_10_list: {NPMI_train_10_list}")
+    wandb.log({"NPMI_train_10": NPMI_train_10})
+    logger.info(f"NPMI_train_10: {NPMI_train_10:.5f}")
+    logger.info(f'NPMI_train_10 list: {NPMI_train_10_list}')
 
-    # NPMI_wiki_10_list, NPMI_wiki_10 = topmost.evaluations.topic_coherence.TC_on_wikipedia(
-    #     os.path.join(current_run_dir, 'top_words_10.txt'), cv_type='NPMI')
-    # print(f"NPMI_wiki_10: {NPMI_wiki_10:.5f}, NPMI_wiki_10_list: {NPMI_wiki_10_list}")
-    # wandb.log({"NPMI_wiki_10": NPMI_wiki_10})
-    # logger.info(f"NPMI_wiki_10: {NPMI_wiki_10:.5f}")
-    # logger.info(f'NPMI_wiki_10 list: {NPMI_wiki_10_list}')
+    NPMI_wiki_10_list, NPMI_wiki_10 = topmost.evaluations.topic_coherence.TC_on_wikipedia(
+        os.path.join(current_run_dir, 'top_words_10.txt'), cv_type='NPMI')
+    print(f"NPMI_wiki_10: {NPMI_wiki_10:.5f}, NPMI_wiki_10_list: {NPMI_wiki_10_list}")
+    wandb.log({"NPMI_wiki_10": NPMI_wiki_10})
+    logger.info(f"NPMI_wiki_10: {NPMI_wiki_10:.5f}")
+    logger.info(f'NPMI_wiki_10 list: {NPMI_wiki_10_list}')
 
-    # Cp_wiki_10_list, Cp_wiki_10 = topmost.evaluations.topic_coherence.TC_on_wikipedia(
-    #     os.path.join(current_run_dir, 'top_words_10.txt'), cv_type='C_P')
-    # print(f"Cp_wiki_10: {Cp_wiki_10:.5f}, Cp_wiki_10_list: {Cp_wiki_10_list}")
-    # wandb.log({"Cp_wiki_10": Cp_wiki_10})
-    # logger.info(f"Cp_wiki_10: {Cp_wiki_10:.5f}")
-    # logger.info(f'Cp_wiki_10 list: {Cp_wiki_10_list}')
+    Cp_wiki_10_list, Cp_wiki_10 = topmost.evaluations.topic_coherence.TC_on_wikipedia(
+        os.path.join(current_run_dir, 'top_words_10.txt'), cv_type='C_P')
+    print(f"Cp_wiki_10: {Cp_wiki_10:.5f}, Cp_wiki_10_list: {Cp_wiki_10_list}")
+    wandb.log({"Cp_wiki_10": Cp_wiki_10})
+    logger.info(f"Cp_wiki_10: {Cp_wiki_10:.5f}")
+    logger.info(f'Cp_wiki_10 list: {Cp_wiki_10_list}')
     
     # w2v_list, w2v = topmost.evaluations.topic_coherence.compute_topic_coherence(
     #     dataset.train_texts, dataset.vocab, top_words_10, cv_type='c_w2v')

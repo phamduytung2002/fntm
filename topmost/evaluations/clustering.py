@@ -34,6 +34,10 @@ def evaluate_clustering(theta, labels):
     return clustering_metric(labels, preds)
 
 
+def evaluate_clustering_with_amax(pred, labels):
+    return clustering_metric(pred, labels)
+
+
 def hierarchical_clustering(test_theta, test_labels):
     num_layer = len(test_theta)
     results = defaultdict(list)

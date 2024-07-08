@@ -32,10 +32,12 @@ class DatasetHandler(Dataset):
 
         if self.contextual_embed is None:
             return {
+                'idx': idx,
                 'data': self.data[idx]
             }
 
         return {
+            'idx': idx,
             'data': self.data[idx],
             'contextual_embed': self.contextual_embed[idx]
         }

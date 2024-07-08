@@ -2,6 +2,7 @@ from .topic_diversity import compute_topic_diversity
 from .topic_diversity import multiaspect_topic_diversity
 
 from .clustering import evaluate_clustering
+from .clustering import evaluate_clustering_with_amax
 from .clustering import hierarchical_clustering
 
 from .classification import evaluate_classification

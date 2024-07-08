@@ -47,34 +47,46 @@ if __name__ == "__main__":
     miscellaneous.tsne_viz(word_embeddings, topic_embeddings,
                            os.path.join(dir, 'tsne.png'))
 
-    top_words = static_utils.print_topic_words(
-        beta, dataset.vocab, config_args.num_top_word)
+    top_words10 = static_utils.print_topic_words(
+        beta, dataset.vocab, 10)
+
+    top_words15 = static_utils.print_topic_words(
+        beta, dataset.vocab, 15)
 
     # model evaluation
     # TD
-    TD = topmost.evaluations.compute_topic_diversity(top_words, _type="TD")
-    print(f"TD: {TD:.5f}")
-    logger.info(f"TD: {TD:.5f}")
+    TD10 = topmost.evaluations.compute_topic_diversity(top_words10, _type="TD")
+    print(f"TD10: {TD10:.5f}")
+    logger.info(f"TD10: {TD10:.5f}")
 
-    # evaluating clustering
-    if read_labels:
-        clustering_results = topmost.evaluations.evaluate_clustering(
-            test_theta, dataset.test_labels)
-        print(f"NMI: ", clustering_results['NMI'])
-        print(f'Purity: ', clustering_results['Purity'])
-        logger.info(f"NMI: {clustering_results['NMI']}")
-        logger.info(f"Purity: {clustering_results['Purity']}")
+    TD15 = topmost.evaluations.compute_topic_diversity(top_words15, _type="TD")
+    print(f"TD15: {TD15:.5f}")
+    logger.info(f"TD15: {TD15:.5f}")
 
-    # evaluate classification
-    if read_labels:
-        classification_results = topmost.evaluations.evaluate_classification(
-            train_theta, test_theta, dataset.train_labels, dataset.test_labels)
-        print(f"Accuracy: ", classification_results['acc'])
-        logger.info(f"Accuracy: {classification_results['acc']}")
-        print(f"Macro-f1", classification_results['macro-F1'])
-        logger.info(f"Macro-f1: {classification_results['macro-F1']}")
+    # # evaluating clustering
+    # if read_labels:
+    #     clustering_results = topmost.evaluations.evaluate_clustering(
+    #         test_theta, dataset.test_labels)
+    #     print(f"NMI: ", clustering_results['NMI'])
+    #     print(f'Purity: ', clustering_results['Purity'])
+    #     logger.info(f"NMI: {clustering_results['NMI']}")
+    #     logger.info(f"Purity: {clustering_results['Purity']}")
 
+    # # evaluate classification
+    # if read_labels:
+    #     classification_results = topmost.evaluations.evaluate_classification(
+    #         train_theta, test_theta, dataset.train_labels, dataset.test_labels)
+    #     print(f"Accuracy: ", classification_results['acc'])
+    #     logger.info(f"Accuracy: {classification_results['acc']}")
+    #     print(f"Macro-f1", classification_results['macro-F1'])
+    #     logger.info(f"Macro-f1: {classification_results['macro-F1']}")
 
+    NPMI_train_10_list, NPMI_train_10 = topmost.evaluations.compute_topic_coherence(
+        dataset.train_texts, dataset.vocab, top_words10, cv_type='c_npmi')
+    print(f"NPMI_train_10: {NPMI_train_10:.5f}, NPMI_train_10_list: {NPMI_train_10_list}")
+    # wandb.log({"NPMI_train_10": NPMI_train_10})
+    logger.info(f"NPMI_train_10: {NPMI_train_10:.5f}")
+    logger.info(f'NPMI_train_10 list: {NPMI_train_10_list}')
     # # TC
     # _, TC = topmost.evaluations.topic_coherence.C_V_on_wikipedia(
     #     os.path.join(dir, 'top_words.txt'))
