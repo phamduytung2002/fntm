@@ -3,18 +3,18 @@ from torch import nn
 
 
 class DCR(nn.Module):
-    def __init__(self, weight_loss_XGR, sinkhorn_alpha, OT_max_iter=5000, stopThr=.5e-2):
+    def __init__(self, weight_loss_DCR, sinkhorn_alpha, OT_max_iter=5000, stopThr=.5e-2):
         super().__init__()
 
         self.sinkhorn_alpha = sinkhorn_alpha
         self.OT_max_iter = OT_max_iter
-        self.weight_loss_XGR = weight_loss_XGR
+        self.weight_loss_DCR = weight_loss_DCR
         self.stopThr = stopThr
         self.epsilon = 1e-16
         self.transp = None
 
     def forward(self, M, group):
-        if self.weight_loss_XGR <= 1e-6:
+        if self.weight_loss_DCR <= 1e-6:
             return 0.
         else:
             # M: KxV cost matrix
@@ -23,6 +23,7 @@ class DCR(nn.Module):
             # b: Vx1 target distribution
             device = M.device
             group = group.to(device)
+            group /= group.sum()
 
             # Sinkhorn's algorithm
             a = (group.sum(axis=1)).unsqueeze(1).to(device)
@@ -45,9 +46,12 @@ class DCR(nn.Module):
             transp = transp.clamp(min=1e-6)
 
             self.transp = transp
+            
+            group = group.clamp(min=1e-6)
+            transp = transp.clamp(min=1e-6)
 
-            loss_XGR = (group * (group.log() - transp.log() - 1) \
+            loss_DCR = (group * (group.log() - transp.log() - 1) \
                 + transp).sum()
-            loss_XGR *= self.weight_loss_XGR
+            loss_DCR *= self.weight_loss_DCR
 
-            return loss_XGR
+            return loss_DCR

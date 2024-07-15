@@ -4,7 +4,7 @@ from torch import nn
 import torch.nn.functional as F
 import torch_kmeans
 from .ECR import ECR
-from .DCR import DCR
+from .DCR2 import DCR2
 from .TCR import TCR
 
 
@@ -66,13 +66,13 @@ class OTClusterTM(nn.Module):
             n_clusters=self.num_groups, max_iter=1000, seed=0, verbose=False,
             normalize='unit')
         cluster_result = kmean_model.fit(doc_embedding[None, :, :])
-        self.doc_centroids = cluster_result._result.centers.squeeze(0)
-        self.group = torch.nn.functional.one_hot(
-            cluster_result._result.labels.squeeze(0), self.num_groups).to(float)
-        self.group[self.group==0.0] = 0.01
-        self.group /= self.group.sum(axis=0, keepdim=True)        
+        doc_centroids = cluster_result._result.centers.squeeze(0)
+        # self.group = torch.nn.functional.one_hot(
+        #     cluster_result._result.labels.squeeze(0), self.num_groups).to(float)
+        # self.group[self.group==0.0] = 0.01
+        # self.group /= self.group.sum(axis=0, keepdim=True)        
 
-        self.DCR = DCR(weight_loss_DCR, alpha_DCR, sinkhorn_max_iter)
+        self.DCR = DCR2(weight_loss_DCR, doc_centroids)
         self.theta_prj = nn.Sequential(nn.Linear(self.num_topics, 384),
                                        nn.Dropout(dropout))
 
@@ -131,12 +131,9 @@ class OTClusterTM(nn.Module):
         loss_ECR = self.ECR(cost)
         return loss_ECR
 
-    def get_loss_DCR(self, theta, idx):
+    def get_loss_DCR(self, theta, bert):
         theta_prj = self.theta_prj(theta)
-        cost = self.pairwise_euclidean_distance(
-            theta_prj, self.doc_centroids).to(torch.double)
-        group = self.group[idx]
-        loss_DCR = self.DCR(cost, group)
+        loss_DCR = self.DCR(theta_prj, bert)
         return loss_DCR
 
     def get_loss_TCR(self):
@@ -153,6 +150,7 @@ class OTClusterTM(nn.Module):
 
     def forward(self, input, epoch_id=None):
         idx = input['idx']
+        bert_emb = input['contextual_embed']
         input = input['data']
         theta, loss_KL = self.encode(input)
         beta = self.get_beta()
@@ -163,7 +161,7 @@ class OTClusterTM(nn.Module):
         loss_TM = recon_loss + loss_KL
 
         loss_ECR = self.get_loss_ECR()
-        loss_DCR = self.get_loss_DCR(theta, idx)
+        loss_DCR = self.get_loss_DCR(theta, bert_emb)
         loss_TCR = self.get_loss_TCR()
         loss = loss_TM + loss_ECR + loss_DCR + loss_TCR
 

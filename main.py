@@ -45,11 +45,11 @@ if __name__ == "__main__":
     if args.model in ['YTM', 'ZTM', 'CombinedTM', 'OTClusterTM']:
         dataset = topmost.data.BasicDatasetHandler(
             os.path.join(DATA_DIR, args.dataset), device=args.device, read_labels=read_labels,
-            as_tensor=True, contextual_embed=True)
+            as_tensor=True, contextual_embed=True, batch_size=args.batch_size)
     else:
         dataset = topmost.data.BasicDatasetHandler(
             os.path.join(DATA_DIR, args.dataset), device=args.device, read_labels=read_labels,
-            as_tensor=True)
+            as_tensor=True, batch_size=args.batch_size)
 
     # create a model
     pretrainWE = scipy.sparse.load_npz(os.path.join(
@@ -144,6 +144,8 @@ if __name__ == "__main__":
                                                       pretrained_WE=pretrainWE if args.use_pretrainWE else None,
                                                       weight_loss_ECR=args.weight_ECR,
                                                       alpha_ECR=args.alpha_ECR,
+                                                      weight_loss_DCR=args.weight_DCR,
+                                                      alpha_DCR=args.alpha_DCR,
                                                       beta_temp=args.beta_temp)
     elif args.model == 'CombinedTM':
         model = topmost.models.MODEL_DICT[args.model](vocab_size=dataset.vocab_size,

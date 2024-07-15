@@ -22,3 +22,5 @@ test/
 !data/20NGu/
 !data/bbc/
 **.bat
+
+.gitkey
