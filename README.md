@@ -21,7 +21,7 @@
                 |- wikipedia_bd.histogram
     ```
 
-Note: step 1, 2, and 3 can be done if conda is installed and run the following command
+Note: step 1, 2, and 3 can be done if conda is installed and run 
     ```
     bash setupenv.sh
     ```
