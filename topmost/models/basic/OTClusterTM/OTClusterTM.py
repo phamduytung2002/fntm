@@ -77,7 +77,9 @@ class OTClusterTM(nn.Module):
                                        nn.Dropout(dropout))
 
         # TCR
-        self.TCR = TCR(weight_loss_TCR, alpha_TCR, sinkhorn_max_iter)
+        self.topic_emb_prj = nn.Sequential(nn.Linear(embed_size, 384),
+                                       nn.Dropout(dropout))
+        self.TCR = TCR(doc_centroids, weight_loss_TCR, alpha_TCR, sinkhorn_max_iter)
 
     def get_beta(self):
         dist = self.pairwise_euclidean_distance(
@@ -136,11 +138,9 @@ class OTClusterTM(nn.Module):
         loss_DCR = self.DCR(theta_prj, bert)
         return loss_DCR
 
-    def get_loss_TCR(self):
-        return 0.
-        cost = self.pairwise_euclidean_distance(
-            self.topic_embeddings, self.word_embeddings)
-        loss_TCR = self.TCR(cost)
+    def get_loss_TCR(self, topic_emb):
+        topic_prj = self.topic_emb_prj(topic_emb)
+        loss_TCR = self.TCR(topic_prj)
         return loss_TCR
 
     def pairwise_euclidean_distance(self, x, y):
@@ -162,7 +162,7 @@ class OTClusterTM(nn.Module):
 
         loss_ECR = self.get_loss_ECR()
         loss_DCR = self.get_loss_DCR(theta, bert_emb)
-        loss_TCR = self.get_loss_TCR()
+        loss_TCR = self.get_loss_TCR(self.topic_embeddings)
         loss = loss_TM + loss_ECR + loss_DCR + loss_TCR
 
         rst_dict = {

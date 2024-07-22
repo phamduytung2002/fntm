@@ -146,6 +146,8 @@ if __name__ == "__main__":
                                                       alpha_ECR=args.alpha_ECR,
                                                       weight_loss_DCR=args.weight_DCR,
                                                       alpha_DCR=args.alpha_DCR,
+                                                      weight_loss_TCR=args.weight_TCR,
+                                                      alpha_TCR=args.alpha_TCR,
                                                       beta_temp=args.beta_temp)
     elif args.model == 'CombinedTM':
         model = topmost.models.MODEL_DICT[args.model](vocab_size=dataset.vocab_size,
@@ -291,11 +293,11 @@ if __name__ == "__main__":
     wandb.log({"TD_15": TD_15})
     logger.info(f"TD_15: {TD_15:.5f}")
 
-    TD_20 = topmost.evaluations.compute_topic_diversity(
-        top_words_20, _type="TD")
-    print(f"TD_20: {TD_20:.5f}")
-    wandb.log({"TD_20": TD_20})
-    logger.info(f"TD_20: {TD_20:.5f}")
+    # TD_20 = topmost.evaluations.compute_topic_diversity(
+    #     top_words_20, _type="TD")
+    # print(f"TD_20: {TD_20:.5f}")
+    # wandb.log({"TD_20": TD_20})
+    # logger.info(f"TD_20: {TD_20:.5f}")
 
     # TD_25 = topmost.evaluations.compute_topic_diversity(
     #     top_words_25, _type="TD")
@@ -341,26 +343,26 @@ if __name__ == "__main__":
     logger.info(f'TC_10 list: {TC_10_list}')
 
     # # NPMI
-    NPMI_train_10_list, NPMI_train_10 = topmost.evaluations.compute_topic_coherence(
-        dataset.train_texts, dataset.vocab, top_words_10, cv_type='c_npmi')
-    print(f"NPMI_train_10: {NPMI_train_10:.5f}, NPMI_train_10_list: {NPMI_train_10_list}")
-    wandb.log({"NPMI_train_10": NPMI_train_10})
-    logger.info(f"NPMI_train_10: {NPMI_train_10:.5f}")
-    logger.info(f'NPMI_train_10 list: {NPMI_train_10_list}')
+    # NPMI_train_10_list, NPMI_train_10 = topmost.evaluations.compute_topic_coherence(
+    #     dataset.train_texts, dataset.vocab, top_words_10, cv_type='c_npmi')
+    # print(f"NPMI_train_10: {NPMI_train_10:.5f}, NPMI_train_10_list: {NPMI_train_10_list}")
+    # wandb.log({"NPMI_train_10": NPMI_train_10})
+    # logger.info(f"NPMI_train_10: {NPMI_train_10:.5f}")
+    # logger.info(f'NPMI_train_10 list: {NPMI_train_10_list}')
 
-    NPMI_wiki_10_list, NPMI_wiki_10 = topmost.evaluations.topic_coherence.TC_on_wikipedia(
-        os.path.join(current_run_dir, 'top_words_10.txt'), cv_type='NPMI')
-    print(f"NPMI_wiki_10: {NPMI_wiki_10:.5f}, NPMI_wiki_10_list: {NPMI_wiki_10_list}")
-    wandb.log({"NPMI_wiki_10": NPMI_wiki_10})
-    logger.info(f"NPMI_wiki_10: {NPMI_wiki_10:.5f}")
-    logger.info(f'NPMI_wiki_10 list: {NPMI_wiki_10_list}')
+    # NPMI_wiki_10_list, NPMI_wiki_10 = topmost.evaluations.topic_coherence.TC_on_wikipedia(
+    #     os.path.join(current_run_dir, 'top_words_10.txt'), cv_type='NPMI')
+    # print(f"NPMI_wiki_10: {NPMI_wiki_10:.5f}, NPMI_wiki_10_list: {NPMI_wiki_10_list}")
+    # wandb.log({"NPMI_wiki_10": NPMI_wiki_10})
+    # logger.info(f"NPMI_wiki_10: {NPMI_wiki_10:.5f}")
+    # logger.info(f'NPMI_wiki_10 list: {NPMI_wiki_10_list}')
 
-    Cp_wiki_10_list, Cp_wiki_10 = topmost.evaluations.topic_coherence.TC_on_wikipedia(
-        os.path.join(current_run_dir, 'top_words_10.txt'), cv_type='C_P')
-    print(f"Cp_wiki_10: {Cp_wiki_10:.5f}, Cp_wiki_10_list: {Cp_wiki_10_list}")
-    wandb.log({"Cp_wiki_10": Cp_wiki_10})
-    logger.info(f"Cp_wiki_10: {Cp_wiki_10:.5f}")
-    logger.info(f'Cp_wiki_10 list: {Cp_wiki_10_list}')
+    # Cp_wiki_10_list, Cp_wiki_10 = topmost.evaluations.topic_coherence.TC_on_wikipedia(
+    #     os.path.join(current_run_dir, 'top_words_10.txt'), cv_type='C_P')
+    # print(f"Cp_wiki_10: {Cp_wiki_10:.5f}, Cp_wiki_10_list: {Cp_wiki_10_list}")
+    # wandb.log({"Cp_wiki_10": Cp_wiki_10})
+    # logger.info(f"Cp_wiki_10: {Cp_wiki_10:.5f}")
+    # logger.info(f'Cp_wiki_10 list: {Cp_wiki_10_list}')
     
     # w2v_list, w2v = topmost.evaluations.topic_coherence.compute_topic_coherence(
     #     dataset.train_texts, dataset.vocab, top_words_10, cv_type='c_w2v')

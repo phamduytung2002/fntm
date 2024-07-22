@@ -3,25 +3,21 @@ from torch import nn
 
 
 class TCR(nn.Module):
-    '''
-        Effective Neural Topic Modeling with Embedding Clustering Regularization. ICML 2023
-
-        Xiaobao Wu, Xinshuai Dong, Thong Thanh Nguyen, Anh Tuan Luu.
-    '''
-    def __init__(self, weight_loss_ECR, sinkhorn_alpha, OT_max_iter=5000, stopThr=.5e-2):
+    def __init__(self, cluster_center, weight_loss_TCR, sinkhorn_alpha, OT_max_iter=5000, stopThr=.5e-2):
         super().__init__()
-
+        
+        self.cluster_center = cluster_center
         self.sinkhorn_alpha = sinkhorn_alpha
         self.OT_max_iter = OT_max_iter
-        self.weight_loss_ECR = weight_loss_ECR
+        self.weight_loss_TCR = weight_loss_TCR
         self.stopThr = stopThr
         self.epsilon = 1e-16
 
-    def forward(self, M):
-        # M: KxV
-        # a: Kx1
-        # b: Vx1
-        device = M.device
+    def forward(self, topic_emb):
+        if self.weight_loss_TCR <= 1e-6:
+            return 0.
+        device = self.cluster_center.device
+        M = torch.cdist(topic_emb, self.cluster_center)
 
         # Sinkhorn's algorithm
         a = (torch.ones(M.shape[0]) / M.shape[0]).unsqueeze(1).to(device)
@@ -42,7 +38,7 @@ class TCR(nn.Module):
 
         transp = u * (K * v.T)
 
-        loss_ECR = torch.sum(transp * M)
-        loss_ECR *= self.weight_loss_ECR
+        loss_TCR = torch.sum(transp * M)
+        loss_TCR *= self.weight_loss_TCR
 
-        return loss_ECR
+        return loss_TCR

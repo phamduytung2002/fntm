@@ -16,6 +16,8 @@ class DCR2(nn.Module):
         return (a * (a.log() - b.log() - 1) + b).sum()
 
     def forward(self, theta_prj, bert_emb):
+        if self.weight_loss_DCR <= 1e-6:
+            return 0.
         distance_theta = torch.cdist(theta_prj, self.cluster_center)
         prob_theta = distance_theta / distance_theta.sum(axis=1, keepdim=True)
 
