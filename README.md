@@ -29,8 +29,28 @@ Note: step 1, 2, and 3 can be done if conda is installed and run
 ## Usage
 To run and evaluate our model, run the following command:
 
-> python main.py --model ZTM --dataset YahooAnswers --num_topics 50 --beta_temp 0.2 --num_groups 20 --epochs 500 --device cuda --lr 0.002 --lr_scheduler StepLR --dropout 0.2 --batch_size 200 --lr_step_size 125 --use_pretrainWE --weight_ECR 40 --weight_GR 1.0 
---alpha_ECR 20.0 --alpha_GR 5.0 --weight_InfoNCE 50.0
+```
+python main.py    --dataset [20NG|YahooAnswers|IMDB|AGNews] \
+                    --model OTClusterTM \
+                    --num_topics 50 \
+                    --num_groups [20|10|2,3,4|2,3] \
+                    --dropout 0 \
+                    --seed 0 \
+                    --beta_temp 0.2 \
+                    --epochs 500 --device cuda --lr 0.002 --lr_scheduler StepLR \
+                    --batch_size 200 --lr_step_size 125 --use_pretrainWE  \
+                    --weight_ECR 250 --alpha_ECR 20 \
+                    --weight_DCR 40 --alpha_DCR 20 \
+                    --weight_TCR 200 --alpha_TCR 20 \
+                    --wandb_prj [Name of project to save on wandb] \
+```
+
+### Parameters
+- 20NG: ~ 250
+- YahooAnswers: ~ 40|60
+- IMDB: ~100-150
+- AGNews: ~100-150
+- The alpha_*CRs should keep to be equal to 20
 
 ## Acknowledgement
 Some part of this implementation is based on [TopMost](https://github.com/BobXWu/TopMost). We also utilizes [Palmetto](https://github.com/dice-group/Palmetto) for the evaluation of topic coherence.
