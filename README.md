@@ -1,6 +1,7 @@
 # This repo forked from TopMost!
 
 ## Preparing libraries
+0. Python 3.10
 1. Install the following libraries
     ```
     numpy 1.26.4

@@ -4,7 +4,7 @@ pip install matplotlib
 pip install wandb
 pip install sentence_transformers==2.2.2
 pip install gensim
-pip install scipy==1.10.1
 conda install -c conda-forge openjdk -y
 conda install -c conda-forge hdbscan -y
 pip install bertopic
+pip install scipy==1.10.1
