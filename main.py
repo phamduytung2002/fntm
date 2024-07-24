@@ -11,7 +11,6 @@ DATA_DIR = 'data'
 
 if __name__ == "__main__":
     # torch.autograd.set_detect_anomaly(mode=True, check_nan=True)
-    torch.use_deterministic_algorithms(False)
     torch.set_printoptions(threshold=10000)
     parser = config.new_parser()
     config.add_dataset_argument(parser)
