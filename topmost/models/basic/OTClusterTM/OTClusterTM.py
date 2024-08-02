@@ -5,11 +5,12 @@ import torch.nn.functional as F
 import torch_kmeans
 from .ECR import ECR
 from .DCR2 import DCR2
+from .DCR3 import DCR3
 from .TCR import TCR
 
 
 class OTClusterTM(nn.Module):
-    def __init__(self, vocab_size, doc_embedding, num_groups=20,
+    def __init__(self, vocab_size, doc_embedding, num_groups=20, num_data=None,
                  num_topics=50, en_units=200,
                  dropout=0., pretrained_WE=None, embed_size=200, beta_temp=0.2,
                  weight_loss_ECR=250.0, alpha_ECR=20.0,
@@ -19,6 +20,7 @@ class OTClusterTM(nn.Module):
         super().__init__()
 
         self.num_topics = num_topics
+        self.num_data = num_data
         self.num_groups = num_groups
         self.beta_temp = beta_temp
 
@@ -67,12 +69,13 @@ class OTClusterTM(nn.Module):
             normalize='unit')
         cluster_result = kmean_model.fit(doc_embedding[None, :, :])
         doc_centroids = cluster_result._result.centers.squeeze(0)
-        # self.group = torch.nn.functional.one_hot(
-        #     cluster_result._result.labels.squeeze(0), self.num_groups).to(float)
-        # self.group[self.group==0.0] = 0.01
-        # self.group /= self.group.sum(axis=0, keepdim=True)        
+        self.cluster_emb = doc_centroids
+        self.group = torch.nn.functional.one_hot(
+            cluster_result._result.labels.squeeze(0), self.num_groups).to(float)
+        self.group[self.group==0.0] = 0.01
+        self.group /= self.group.sum(axis=0, keepdim=True)
 
-        self.DCR = DCR2(weight_loss_DCR, doc_centroids)
+        self.DCR = DCR3(weight_loss_DCR, alpha_DCR, self.num_groups, self.num_data)
         self.theta_prj = nn.Sequential(nn.Linear(self.num_topics, 384),
                                        nn.Dropout(dropout))
 
@@ -137,6 +140,12 @@ class OTClusterTM(nn.Module):
         theta_prj = self.theta_prj(theta)
         loss_DCR = self.DCR(theta_prj, bert)
         return loss_DCR
+    
+    def get_loss_DCR3(self, theta, group, batch_idx):
+        prj_theta = self.theta_prj(theta)
+        cdist = torch.cdist(prj_theta, self.cluster_emb)
+        loss_DCR = self.DCR(cdist, group, batch_idx)
+        return loss_DCR
 
     def get_loss_TCR(self, topic_emb):
         topic_prj = self.topic_emb_prj(topic_emb)
@@ -148,7 +157,7 @@ class OTClusterTM(nn.Module):
             torch.sum(y ** 2, dim=1) - 2 * torch.matmul(x, y.t())
         return cost
 
-    def forward(self, input, epoch_id=None):
+    def forward(self, input, epoch_id=None, batch_idx=None):
         idx = input['idx']
         bert_emb = input['contextual_embed']
         input = input['data']
@@ -159,10 +168,16 @@ class OTClusterTM(nn.Module):
         recon_loss = -(input * recon.log()).sum(axis=1).mean()
 
         loss_TM = recon_loss + loss_KL
+        
+        group = self.group[idx]
 
         loss_ECR = self.get_loss_ECR()
-        loss_DCR = self.get_loss_DCR(theta, bert_emb)
+        loss_DCR = self.get_loss_DCR3(theta, group, batch_idx)
         loss_TCR = self.get_loss_TCR(self.topic_embeddings)
+        # print(loss_TM)
+        # print(loss_ECR)
+        # print(loss_DCR)
+        # print(loss_TCR)
         loss = loss_TM + loss_ECR + loss_DCR + loss_TCR
 
         rst_dict = {

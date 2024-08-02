@@ -62,9 +62,9 @@ class BasicTrainer:
             loss_rst_dict = defaultdict(float)
             wandb.log({'epoch': epoch})
 
-            for batch_data in dataset_handler.train_dataloader:
+            for batch_idx, batch_data in enumerate(dataset_handler.train_dataloader):
 
-                rst_dict = self.model(batch_data, epoch_id=epoch)
+                rst_dict = self.model(batch_data, epoch_id=epoch, batch_idx=batch_idx)
                 batch_loss = rst_dict['loss']
 
                 optimizer.zero_grad()
