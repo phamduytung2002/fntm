@@ -140,6 +140,7 @@ if __name__ == "__main__":
                                                       doc_embedding=dataset.train_contextual_embed,
                                                       num_topics=args.num_topics,
                                                       num_groups=args.num_groups,
+                                                      num_data=len(dataset.train_labels),
                                                       dropout=args.dropout,
                                                       pretrained_WE=pretrainWE if args.use_pretrainWE else None,
                                                       weight_loss_ECR=args.weight_ECR,
@@ -335,12 +336,12 @@ if __name__ == "__main__":
     logger.info(f"TC_15: {TC_15:.5f}")
     logger.info(f'TC_15 list: {TC_15_list}')
 
-    TC_10_list, TC_10 = topmost.evaluations.topic_coherence.TC_on_wikipedia(
-        os.path.join(current_run_dir, 'top_words_10.txt'))
-    print(f"TC_10: {TC_10:.5f}")
-    wandb.log({"TC_10": TC_10})
-    logger.info(f"TC_10: {TC_10:.5f}")
-    logger.info(f'TC_10 list: {TC_10_list}')
+    # TC_10_list, TC_10 = topmost.evaluations.topic_coherence.TC_on_wikipedia(
+    #     os.path.join(current_run_dir, 'top_words_10.txt'))
+    # print(f"TC_10: {TC_10:.5f}")
+    # wandb.log({"TC_10": TC_10})
+    # logger.info(f"TC_10: {TC_10:.5f}")
+    # logger.info(f'TC_10 list: {TC_10_list}')
 
     # # NPMI
     # NPMI_train_10_list, NPMI_train_10 = topmost.evaluations.compute_topic_coherence(
