@@ -75,7 +75,7 @@ class OTClusterTM(nn.Module):
         self.group[self.group==0.0] = 0.01
         self.group /= self.group.sum(axis=0, keepdim=True)
 
-        self.DCR = DCR3(weight_loss_DCR, alpha_DCR, self.num_groups, self.num_data)
+        self.DCR = DCR2(weight_loss_DCR, doc_centroids)
         self.theta_prj = nn.Sequential(nn.Linear(self.num_topics, 384),
                                        nn.Dropout(dropout))
 
@@ -172,7 +172,7 @@ class OTClusterTM(nn.Module):
         group = self.group[idx]
 
         loss_ECR = self.get_loss_ECR()
-        loss_DCR = self.get_loss_DCR3(theta, group, batch_idx)
+        loss_DCR = self.get_loss_DCR(theta, bert_emb)
         loss_TCR = self.get_loss_TCR(self.topic_embeddings)
         # print(loss_TM)
         # print(loss_ECR)
