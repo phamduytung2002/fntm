@@ -42,7 +42,7 @@ if __name__ == "__main__":
         read_labels = False
 
     # load a preprocessed dataset
-    if args.model in ['YTM', 'ZTM', 'CombinedTM', 'OTClusterTM']:
+    if args.model in ['YTM', 'ZTM', 'CombinedTM', 'OTClusterTM', 'WeTe']:
         dataset = topmost.data.BasicDatasetHandler(
             os.path.join(DATA_DIR, args.dataset), device=args.device, read_labels=read_labels,
             as_tensor=True, contextual_embed=True, batch_size=args.batch_size)
@@ -173,6 +173,11 @@ if __name__ == "__main__":
                                                       sinkhorn_alpha=args.alpha_TPD,
                                                       weight_loss_ECR=args.weight_ECR, 
                                                       alpha_ECR=args.alpha_ECR)
+    elif args.model == "WeTe":
+        model = topmost.models.MODEL_DICT[args.model](vocab_size=dataset.vocab_size,
+                                                      pretrained_WE=pretrainWE if args.use_pretrainWE else None,
+                                                      num_topics=args.num_topics,
+                                                      dropout=args.dropout)
     else:
         model = topmost.models.MODEL_DICT[args.model](vocab_size=dataset.vocab_size,
                                                       num_topics=args.num_topics,

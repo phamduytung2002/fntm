@@ -1,0 +1,1 @@
+python main.py --dataset 20NG --model WeTe --epochs 500 --use_pretrainWE

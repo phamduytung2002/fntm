@@ -12,6 +12,7 @@ from .basic.XTMv4.XTMv4 import XTMv4
 from .basic.YTM.YTM import YTM
 from .basic.ZTM.ZTM import ZTM
 from .basic.OTClusterTM.OTClusterTM import OTClusterTM
+from .basic.WeTe import WeTe
 
 from .crosslingual.NMTM import NMTM
 from .crosslingual.InfoCTM.InfoCTM import InfoCTM
@@ -45,4 +46,5 @@ MODEL_DICT = {
     "YTM": YTM,
     "ZTM": ZTM,
     "OTClusterTM": OTClusterTM,
+    'WeTe': WeTe
 }
